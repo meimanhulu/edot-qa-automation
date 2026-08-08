@@ -1,0 +1,47 @@
+# =============================================================================
+# TC-MOB-004 + TC-MOB-009 - Create customer lalu verifikasi datanya
+# Assertion Tier 2: verifikasi record ADA dan NILAINYA sama dengan input.
+# Toast sukses saja tidak cukup.
+#
+# Data customer dilewatkan sebagai env var oleh runner (dari modul AI 3A).
+# =============================================================================
+appId: ${EWORK_APP_ID}
+---
+- runFlow: shared/login.yaml
+
+# ---------- Create ----------
+- tapOn:
+    id: "TODO_customer_menu"
+- tapOn:
+    id: "TODO_add_customer_button"
+
+- tapOn:
+    id: "TODO_customer_name_field"
+- inputText: ${CUSTOMER_NAME}
+
+- tapOn:
+    id: "TODO_customer_phone_field"
+- inputText: ${CUSTOMER_PHONE}
+
+- tapOn:
+    id: "TODO_customer_address_field"
+- inputText: ${CUSTOMER_ADDRESS}
+
+- tapOn:
+    id: "TODO_submit_button"
+
+# ---------- Tier 2: verifikasi nilai, bukan toast ----------
+# TODO: buka kembali detail customer, lalu assert TIAP field satu per satu.
+#       assertVisible dengan text persis lebih kuat daripada sekadar
+#       memastikan halaman list terbuka.
+
+- extendedWaitUntil:
+    visible:
+      id: "TODO_customer_list"
+    timeout: 30000
+
+# Tier 2: nama tersimpan sama persis dengan input
+- assertVisible:
+    text: ${CUSTOMER_NAME}
+
+# TODO: buka detail, assert phone dan address juga.

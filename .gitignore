@@ -1,0 +1,25 @@
+# --- Rahasia: JANGAN PERNAH di-commit ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# --- Output test ---
+allure-results/
+allure-report/
+storage_state.json
+screenshots/
+maestro-output/
+*.log
+
+# --- Editor ---
+.vscode/
+.idea/
+.DS_Store

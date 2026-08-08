@@ -1,0 +1,38 @@
+# =============================================================================
+# SHARED SUB-FLOW: login
+# Dipanggil flow lain via runFlow. Brief: "Extract anything reused - login
+# especially - into a shared sub-flow referenced with runFlow."
+#
+# Kredensial DILARANG hardcode. Dilewatkan sebagai environment variable
+# oleh wrapper Pytest (mobile/runner.py).
+#
+# Prioritas selector: id > id regex > text > accessibilityText > composite > point
+# Tap koordinat adalah pilihan TERAKHIR dan wajib dijustifikasi di komentar.
+# =============================================================================
+appId: ${EWORK_APP_ID}
+---
+- launchApp
+
+# TODO: ganti seluruh selector di bawah dengan hasil `maestro studio`
+#       atau `maestro hierarchy`. Yang di sini hanya bentuk, bukan nilai final.
+
+- tapOn:
+    id: "TODO_company_id_field"
+- inputText: ${EWORK_COMPANY_ID}
+
+- tapOn:
+    id: "TODO_username_field"
+- inputText: ${EWORK_USERNAME}
+
+- tapOn:
+    id: "TODO_password_field"
+- inputText: ${EWORK_PASSWORD}
+
+- tapOn:
+    id: "TODO_login_button"
+
+# Menunggu tanpa sleep - brief melarang sleep-based waiting.
+- extendedWaitUntil:
+    visible:
+      id: "TODO_dashboard_anchor"
+    timeout: 30000

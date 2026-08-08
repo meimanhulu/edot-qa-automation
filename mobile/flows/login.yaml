@@ -1,0 +1,10 @@
+# =============================================================================
+# TC-MOB-001 - Login eWork SFA
+# Assertion Tier 1: cukup pastikan dashboard tampil.
+# =============================================================================
+appId: ${EWORK_APP_ID}
+---
+- runFlow: shared/login.yaml
+
+- assertVisible:
+    id: "TODO_dashboard_anchor"
