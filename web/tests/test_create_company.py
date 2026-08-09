@@ -43,33 +43,70 @@ def test_create_company(page, env, created_company):
 
 @pytest.mark.web
 @pytest.mark.tier1
-@allure.title("TC-WEB-007 Next stays disabled until Step 1 is valid")
+@allure.title("TC-WEB-007a Next stays disabled until Step 1 is complete")
 def test_next_disabled_until_step_one_valid(page, env, company_data):
     """
-    Aplikasi men-disable Next selama Step 1 belum lengkap — pola yang sama
-    dengan tombol Log In di Account Center.
+    Perilaku inti: Next terkunci selama form belum lengkap, dan terbuka
+    setelah seluruh field wajib terisi.
 
-    Test ini juga memverifikasi validasi bereaksi terhadap PENGHAPUSAN nilai,
-    bukan hanya terhadap pengisian pertama. Validasi yang hanya fire saat
-    input pertama membuat user bisa mengosongkan field wajib lalu tetap lanjut.
+    Aplikasi memakai tombol disabled sebagai mekanisme validasi, bukan pesan
+    error — jadi status tombol inilah yang diverifikasi.
     """
     wizard = RegisterCompanyWizard(page)
     wizard.open(env["base_url"])
 
-    assert not wizard.is_next_enabled(), "Next sudah enabled padahal form masih kosong"
+    # expect_next_* memakai polling. Pemeriksaan seketika (is_enabled) bisa
+    # gagal karena validasi React butuh satu siklus render setelah field
+    # berubah — kegagalan seperti itu menyalahkan aplikasi atas keterlambatan
+    # yang sebenarnya normal.
+    wizard.expect_next_disabled()
+
+    chosen = wizard.fill_step_one(company_data.model_dump())
+
+    allure.attach(
+        "\n".join(f"{k}: {v!r}" for k, v in chosen.items()),
+        name="nilai dropdown yang terpilih",
+        attachment_type=allure.attachment_type.TEXT,
+    )
+
+    wizard.expect_next_enabled()
+
+
+@pytest.mark.web
+@pytest.mark.tier1
+@allure.title("TC-WEB-007b Validation reacts when a required field is cleared")
+def test_validation_reacts_to_field_removal(page, env, company_data):
+    """
+    Edge case: validasi harus bereaksi terhadap PENGHAPUSAN nilai, bukan
+    hanya terhadap pengisian pertama.
+
+    Validasi yang hanya fire saat input pertama membuat user bisa
+    mengosongkan field wajib lalu tetap melanjutkan — dan data tidak lengkap
+    ikut tersubmit.
+
+    Dipisah dari TC-WEB-007a supaya kegagalan di sini tidak menutupi
+    perilaku inti yang sudah benar. Kalau test ini merah, itu temuan tentang
+    aplikasi — bukan cacat skrip.
+    """
+    wizard = RegisterCompanyWizard(page)
+    wizard.open(env["base_url"])
 
     data = company_data.model_dump()
     wizard.fill_step_one(data)
-    assert wizard.is_next_enabled(), "Next tidak enabled padahal seluruh Step 1 terisi valid"
+    wizard.expect_next_enabled()
 
     wizard.clear_field("name")
-    assert not wizard.is_next_enabled(), (
-        "Next masih enabled setelah Company Name dikosongkan — "
-        "validasi tidak bereaksi terhadap penghapusan nilai"
+
+    allure.attach(
+        f"Company Name dikosongkan. Next enabled: {wizard.is_next_enabled()}",
+        name="status Next setelah field dikosongkan",
+        attachment_type=allure.attachment_type.TEXT,
     )
 
+    wizard.expect_next_disabled()
+
     wizard.f["name"].fill(data["name"])
-    assert wizard.is_next_enabled(), "Next tidak kembali enabled setelah field diisi ulang"
+    wizard.expect_next_enabled()
 
 
 @pytest.mark.web
@@ -92,7 +129,7 @@ def test_register_requires_agreement(page, env, company_data):
 
     data = company_data.model_dump()
     wizard.fill_step_one(data)
-    wizard.click_next()
+    wizard.click_next(expect_text="Register Legal")
     wizard.complete_step_two()
 
     # Sampai di Step 3. Isi datanya tanpa mencentang persetujuan.
@@ -134,7 +171,7 @@ def test_company_name_stored_trimmed(page, env, company_data):
     wizard = RegisterCompanyWizard(page)
     wizard.open(env["base_url"])
     wizard.fill_step_one(data)
-    wizard.click_next()
+    wizard.click_next(expect_text="Register Legal")
     wizard.complete_step_two()
     wizard.complete_step_three(data)
 
@@ -196,9 +233,7 @@ def test_required_field_blocks_next(page, env, company_data, field, value):
     wizard.fill_step_one(data)
 
     # Negative: Next harus tetap terkunci saat ada field wajib yang kosong.
-    assert not wizard.is_next_enabled(), (
-        f"Next enabled padahal field wajib {field!r} kosong"
-    )
+    wizard.expect_next_disabled()
 
 
 @pytest.mark.web

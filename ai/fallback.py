@@ -31,6 +31,14 @@ fake = Faker("id_ID")
 #
 # postal_code TIDAK disertakan: aplikasi mengisinya OTOMATIS setelah
 # Sub District dipilih. Nilainya dibaca dari form, bukan ditentukan di sini.
+#
+# province/city/district/sub_district juga tidak lagi dipakai untuk mengisi
+# form — suite memilih opsi pertama yang disediakan aplikasi. Nilai di sini
+# dipertahankan sebagai dokumentasi rantai yang terverifikasi sah.
+#
+# country TETAP dipakai: memilih "Philippines" (opsi pertama) mengubah
+# struktur cascade menjadi Region > Province > City > Barangay dan prefix
+# telepon jadi +63. Suite ini fokus pada Indonesia.
 REGIONS = [
     {
         "country": "Indonesia",

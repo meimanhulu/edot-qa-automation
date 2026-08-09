@@ -26,13 +26,19 @@ TIGA TEMUAN YANG MEMBENTUK IMPLEMENTASI INI:
 
 1. CASCADE MUNCUL BERTAHAP (progressive disclosure).
    Sebelum Country dipilih, form hanya menampilkan 8 field. Setelah Country
-   dipilih, lima field BARU muncul: Province, City, District, Sub District,
+   dipilih, lima field BARU tampil: Province, City, District, Sub District,
    dan Postal Code.
+
+   Field-field itu sudah ADA di DOM sejak awal, hanya tersembunyi — bukan
+   ditambahkan belakangan. Karena itu seluruh locator combobox memakai
+   filter `:visible`; tanpanya, indeks menunjuk elemen tersembunyi.
 
    Dua perbedaan dari brief:
      - brief menyebut level keempat "Zone"; aplikasi memakai "Sub District"
      - brief menyebut Postal Code sebagai pilihan; aplikasi mengisinya
-       OTOMATIS setelah Sub District dipilih, dan field-nya read-only
+       OTOMATIS setelah Sub District dipilih. Elemennya COMBOBOX ber-status
+       disabled, bukan <input> — sehingga get_by_placeholder() tidak
+       menemukannya dan nilainya dibaca lewat inner_text()
 
 2. SEMUA DROPDOWN ADALAH button[role=combobox], BUKAN <select>.
    Diverifikasi: querySelectorAll('select') mengembalikan nol elemen.
@@ -51,6 +57,8 @@ TIGA TEMUAN YANG MEMBENTUK IMPLEMENTASI INI:
    Ini sekaligus temuan aksesibilitas: pengguna screen reader tidak
    mendapat informasi apa pun tentang fungsi tiap dropdown.
 """
+import re
+
 from playwright.sync_api import Locator, Page, expect
 
 from .base_page import BasePage
@@ -111,10 +119,6 @@ class RegisterCompanyWizard(BasePage):
             key: page.get_by_placeholder(ph) for key, ph in PLACEHOLDERS.items()
         }
 
-        # Postal Code adalah INPUT read-only yang terisi otomatis setelah
-        # Sub District dipilih, bukan dropdown yang bisa dipilih.
-        self.postal_code_input = page.get_by_placeholder("Choose Postal Code")
-
         self.next_button = page.get_by_role("button", name="Next")
         self.back_button = page.get_by_role("button", name="Back", exact=True)
         self.back_to_companies = page.get_by_role("button", name="Back to Companies")
@@ -126,7 +130,7 @@ class RegisterCompanyWizard(BasePage):
         )
         self.register_button = page.get_by_role("button", name="Register", exact=True)
         # Step 3 hanya punya SATU combobox (Country), jadi indeksnya 0.
-        self.branch_country = page.locator("[role=combobox]").first
+        self.branch_country = page.locator("[role=combobox]:visible").first
         # Checkbox persetujuan tidak punya label yang bisa dipakai get_by_label,
         # jadi diakses lewat role — hanya ada satu checkbox di step ini.
         self.agree_checkbox = page.get_by_role("checkbox")
@@ -149,11 +153,21 @@ class RegisterCompanyWizard(BasePage):
         tag-nya <button>, sehingga get_by_role("button", ...) pun tidak
         pernah cocok. Kedua jalan berbasis role+name buntu.
 
+        Filter `:visible` WAJIB. Keempat combobox cascade (Province, City,
+        District, Sub District) sudah dirender di DOM sejak awal dalam
+        keadaan tersembunyi, lalu ditampilkan setelah Country dipilih —
+        bukan ditambahkan belakangan. Tanpa filter ini, nth(4) menunjuk
+        combobox tersembunyi alih-alih Country, dan gagalnya berbunyi
+        "element is not visible" yang menyesatkan.
+
+        Pola yang sama juga muncul di halaman login: input password sudah
+        ada sebagai type=hidden sebelum layarnya tampil.
+
         Konsekuensi yang diterima sadar: locator ini rapuh terhadap
         perubahan URUTAN field. Alternatifnya hanya text selector, yang
         justru lebih rapuh — teksnya berubah begitu opsi dipilih.
         """
-        return self.page.locator("[role=combobox]").nth(COMBOBOX_ORDER[key])
+        return self.page.locator("[role=combobox]:visible").nth(COMBOBOX_ORDER[key])
 
     def select_option(self, key: str, value: str) -> None:
         """
@@ -228,7 +242,7 @@ class RegisterCompanyWizard(BasePage):
             3 = Language
             4 = Country
         """
-        return self.page.locator("[role=combobox]").nth(index).inner_text().strip()
+        return self.page.locator("[role=combobox]:visible").nth(index).inner_text().strip()
 
     # ------------------------------------------------------------------
     # Step 1
@@ -245,18 +259,38 @@ class RegisterCompanyWizard(BasePage):
 
     def fill_dropdowns(self, data: dict) -> dict[str, str]:
         """
-        Isi seluruh combobox dengan opsi PERTAMA masing-masing.
+        Isi seluruh combobox Step 1.
+
+        Pembagiannya:
+          - Industry Type, Company Type, Language  -> opsi pertama
+          - Country                                -> eksplisit dari data
+          - cascade (Province s/d Sub District)    -> opsi pertama
 
         Mengembalikan dict nilai yang benar-benar terpilih — dipakai test
         sebagai expected value saat verifikasi Tier 2.
 
-        Country dipilih setelah tiga lainnya karena memilihnya MEMUNCULKAN
-        lima field baru (Province s/d Postal Code). Mengisinya lebih awal
-        akan menggeser indeks combobox lain di tengah pengisian.
+        Country diisi setelah tiga dropdown pertama karena memilihnya
+        MEMUNCULKAN lima field baru. Mengisinya lebih awal akan menggeser
+        indeks combobox lain di tengah pengisian.
         """
         chosen = {}
-        for key in ("industry_type", "company_type", "language", "country"):
+
+        # Tiga dropdown ini isinya statis dan tidak saling bergantung,
+        # jadi opsi pertama selalu sah.
+        for key in ("industry_type", "company_type", "language"):
             chosen[key] = self.select_first_option(key)
+
+        # Country DIPILIH EKSPLISIT, tidak memakai opsi pertama.
+        #
+        # Opsi pertama adalah "Philippines", dan memilihnya mengubah seluruh
+        # bentuk form: cascade-nya menjadi Region > Province > City > Barangay
+        # (bukan Province > City > District > Sub District), dan prefix telepon
+        # berubah jadi +63 sehingga nomor Indonesia ditolak.
+        #
+        # Suite ini fokus pada wilayah Indonesia, jadi negaranya ditentukan
+        # oleh data test — bukan oleh urutan opsi.
+        self.select_option("country", data["country"])
+        chosen["country"] = data["country"]
 
         chosen.update(self.select_cascade())
         return chosen
@@ -279,9 +313,16 @@ class RegisterCompanyWizard(BasePage):
             expect(combobox).to_be_visible()
             chosen[key] = self.select_first_option(key)
 
-        # Postal Code terisi otomatis — tunggu sampai benar-benar ada isinya
-        # sebelum menganggap Step 1 selesai.
-        expect(self.postal_code_input).not_to_have_value("")
+        # Postal Code terisi otomatis setelah Sub District dipilih.
+        #
+        # Ditunggu dengan pola 5 DIGIT, bukan sekadar "tidak kosong":
+        # sebelum terisi, isinya adalah teks placeholder "Choose Postal Code",
+        # sehingga pengecekan not_to_have_text("") akan lolos padahal
+        # nilainya belum ada.
+        postal = self.page.locator("[role=combobox][disabled]").first
+        expect(postal).to_be_visible()
+        expect(postal).to_have_text(re.compile(r"^\s*\d{5}\s*$"), timeout=30000)
+
         chosen["postal_code"] = self.postal_code()
         return chosen
 
@@ -291,8 +332,16 @@ class RegisterCompanyWizard(BasePage):
 
         Dibaca, bukan ditentukan — nilainya berasal dari Sub District yang
         dipilih. Dipakai sebagai expected value saat verifikasi detail.
+
+        PENTING: Postal Code adalah COMBOBOX ber-status disabled, bukan
+        <input>. get_by_placeholder() tidak akan menemukannya karena hanya
+        cocok ke input/textarea — dan kegagalannya berupa timeout saat
+        menunggu nilai, padahal nilainya sudah ada di layar.
+
+        Karena disabled, ia TIDAK ikut terhitung oleh selector `:visible`
+        yang dipakai combobox lain, sehingga diakses lewat locator terpisah.
         """
-        return self.postal_code_input.input_value()
+        return self.page.locator("[role=combobox][disabled]").first.inner_text().strip()
 
     def snapshot_cascade(self) -> dict[str, str]:
         """
@@ -345,20 +394,67 @@ class RegisterCompanyWizard(BasePage):
 
     def is_next_enabled(self) -> bool:
         """
-        Status enabled tombol Next.
+        Status enabled tombol Next SAAT INI, tanpa menunggu.
 
-        Aplikasi men-disable Next selama Step 1 belum valid — sama seperti
-        tombol Log In di Account Center. Dipakai TC-WEB-006 dan TC-WEB-007.
+        Dipakai hanya untuk membaca keadaan, bukan untuk assert. Untuk
+        assert, pakai expect_next_enabled() atau expect_next_disabled()
+        yang melakukan polling.
         """
         return self.next_button.is_enabled()
+
+    def expect_next_enabled(self) -> None:
+        """
+        Tunggu sampai Next benar-benar enabled.
+
+        Memakai expect() yang melakukan polling, bukan is_enabled() yang
+        memeriksa saat itu juga. Validasi form berjalan di React dan butuh
+        satu siklus render setelah field berubah — pemeriksaan seketika bisa
+        gagal padahal aplikasinya berperilaku benar.
+        """
+        expect(self.next_button).to_be_enabled()
+
+    def expect_next_disabled(self) -> None:
+        """
+        Tunggu sampai Next benar-benar disabled.
+
+        Dipakai test Negative: setelah field wajib dikosongkan, tombol harus
+        kembali terkunci. Polling diperlukan karena perubahannya tidak
+        seketika.
+        """
+        expect(self.next_button).to_be_disabled()
 
     def clear_field(self, key: str) -> None:
         """Kosongkan satu field teks. Dipakai TC-WEB-007."""
         self.f[key].fill("")
 
-    def click_next(self) -> None:
+    def click_next(self, expect_text: str | None = None) -> None:
+        """
+        Klik Next dan tunggu langkah berikutnya benar-benar tampil.
+
+        `expect_text` adalah penanda halaman tujuan — judul langkah berikutnya.
+        Bila tidak diberikan, method hanya menunggu tombol Next hilang atau
+        berubah, sebagai penanda minimal bahwa transisi terjadi.
+
+        Kenapa BUKAN networkidle: Playwright menyarankan menghindarinya untuk
+        SPA. eSuite memuat data lewat XHR yang berjalan terus, sehingga
+        kondisi "jaringan tenang" mungkin tidak pernah tercapai dan
+        penantiannya menggantung sampai timeout — padahal halamannya sudah
+        berpindah sejak tadi.
+
+        Kenapa BUKAN membaca indikator langkah: locator berbasis teks "/3"
+        tidak dijamin cocok, dan bila meleset, inner_text() akan menggantung
+        menunggu elemen yang tidak ada. Menunggu judul tujuan jauh lebih
+        pasti karena teksnya unik per langkah.
+        """
         self.next_button.click()
-        self.page.wait_for_load_state("networkidle")
+
+        if expect_text:
+            expect(self.page.get_by_text(expect_text, exact=True)).to_be_visible(
+                timeout=30000
+            )
+        else:
+            # Penanda minimal: tombol Next pada langkah ini tidak lagi tampil.
+            expect(self.next_button).not_to_be_visible(timeout=30000)
 
     def current_step(self) -> str:
         """
@@ -367,7 +463,10 @@ class RegisterCompanyWizard(BasePage):
         Dipakai untuk memastikan wizard benar-benar berpindah setelah Next,
         bukan sekadar menunggu jaringan tenang.
         """
-        return self.page.get_by_text("/3").first.inner_text().strip()
+        indicator = self.page.get_by_text("/3")
+        if indicator.count() == 0:
+            return ""
+        return indicator.first.inner_text().strip()
 
     # ------------------------------------------------------------------
     # Step 2 — Register Legal
@@ -384,7 +483,7 @@ class RegisterCompanyWizard(BasePage):
         tidak ada yang perlu diisi untuk membuat company.
         """
         expect(self.page.get_by_text("Register Legal", exact=True)).to_be_visible()
-        self.click_next()
+        self.click_next(expect_text="Create Your Branch")
 
     # ------------------------------------------------------------------
     # Step 3 — Create Your Branch
@@ -425,7 +524,10 @@ class RegisterCompanyWizard(BasePage):
 
         expect(self.register_button).to_be_enabled()
         self.register_button.click()
-        self.page.wait_for_load_state("networkidle")
+
+        # Setelah Register, aplikasi mengarahkan ke halaman detail company
+        # baru. Menunggu URL berubah lebih andal daripada networkidle.
+        self.page.wait_for_url("**/manage-companies/**", timeout=60000)
 
     def branch_name(self) -> str:
         """
