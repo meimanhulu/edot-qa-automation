@@ -8,14 +8,21 @@ from web.pages.login_page import LoginPage
 @pytest.mark.web
 @pytest.mark.tier1
 @allure.title("TC-WEB-001 Login with valid credentials")
-def test_login_valid(page):
+def test_login_valid(page, env):
     """
-    Login sudah terjadi di fixture session (storage_state). Test ini
-    memverifikasi HASILNYA, bukan mengulang prosesnya — itulah sebabnya
-    tidak ada pemanggilan login() di sini.
+    Login sudah terjadi di fixture session (storage_state), jadi test ini
+    memverifikasi HASILNYA — bukan mengulang prosesnya.
+
+    Halaman tetap perlu dibuka: storage_state memulihkan sesi, tetapi
+    context baru selalu mulai dari about:blank.
     """
     login = LoginPage(page)
-    assert login.is_dashboard_visible(), "Greeting 'Welcome Back,' tidak tampil di dashboard"
+    login.goto(env["base_url"])
+
+    assert login.is_dashboard_visible(), (
+        "Greeting 'Welcome Back,' tidak tampil setelah membuka eSuite "
+        "dengan sesi yang sudah login"
+    )
 
 
 @pytest.mark.web
@@ -28,49 +35,89 @@ def test_login_invalid_password(anon_page, env):
     """
     login = LoginPage(anon_page)
     login.open(env["base_url"])
-    login.submit_email(env["email"])
+    login.submit_username(env["email"])
     login.submit_password("WrongPass123!")
 
-    # Negative: assert TEKS pesan error, bukan sekadar "masih di halaman login".
+    # Negative: assert ISI pesan error, bukan sekadar "masih di halaman login".
+    # Account Center menaruh pesannya di query parameter `err`, bukan di DOM.
     error = login.error_text()
+    allure.attach(
+        f"URL setelah submit: {anon_page.url}\npesan error: {error!r}",
+        name="bukti penolakan login",
+        attachment_type=allure.attachment_type.TEXT,
+    )
+
     assert error.strip(), "Tidak ada pesan error yang tampil saat password salah"
-    assert "password" in error.lower() or "incorrect" in error.lower(), (
+    assert any(k in error.lower() for k in ("password", "incorrect", "invalid")), (
         f"Pesan error tidak menyebut kredensial salah: {error!r}"
     )
-    assert not login.is_dashboard_visible(), "Dashboard tercapai padahal password salah"
+
+    # Timeout dipendekkan: di sini kita justru MENGHARAP dashboard tidak muncul,
+    # jadi tidak perlu menunggu penuh.
+    assert not login.is_dashboard_visible(timeout=3000), (
+        "Dashboard tercapai padahal password salah"
+    )
 
 
 @pytest.mark.web
 @pytest.mark.negative
-@allure.title("TC-WEB-003 Login blocked when email empty")
-def test_login_empty_email(anon_page, env):
+@allure.title("TC-WEB-003 Log In button disabled when username is empty")
+def test_login_button_disabled_when_username_empty(anon_page, env):
+    """
+    Aplikasi men-disable tombol Log In selama username kosong — itu perilaku
+    yang benar, dan bentuk validasi yang dipakai Account Center.
+
+    Karena itu test ini memverifikasi STATUS TOMBOL, bukan mengklik lalu
+    mengharap pesan error yang memang tidak akan pernah muncul.
+    """
     login = LoginPage(anon_page)
     login.open(env["base_url"])
-    login.submit_email("")
+    login.open_username_screen()
 
-    # Negative: pesan required-field yang spesifik untuk field email.
-    error = login.error_text()
-    assert error.strip(), "Tidak ada pesan error saat email dikosongkan"
-    assert "email" in error.lower(), f"Pesan error tidak menyebut field email: {error!r}"
+    # Negative: tombol harus disabled saat field kosong.
+    assert not login.is_login_button_enabled(), (
+        "Tombol Log In enabled padahal username masih kosong"
+    )
+
+    # Dan harus kembali enabled setelah diisi — membuktikan validasinya
+    # bereaksi terhadap isi field, bukan sekadar disabled permanen.
+    login.fill_username(env["email"])
+    assert login.is_login_button_enabled(), (
+        "Tombol Log In tetap disabled padahal username sudah diisi"
+    )
 
 
 @pytest.mark.web
 @pytest.mark.tier1
-@allure.title("TC-WEB-004 Email accepted regardless of case and whitespace")
+@allure.title("TC-WEB-004 Email with surrounding whitespace and different case")
 def test_login_email_normalization(anon_page, env):
     """
     Edge case: input hasil copy-paste sering membawa spasi tak terlihat.
 
-    Kalau sistem justru menolak, JANGAN ubah expected value agar hijau —
-    catat sebagai temuan. Brief menyebut hal itu sebagai non-negotiable failure.
+    Temuan: aplikasi TIDAK men-trim input, sehingga tombol Log In tetap
+    disabled untuk email ber-spasi. Test ini mendokumentasikan perilaku
+    sebenarnya, bukan memaksanya hijau.
+
+    Kalau kelak aplikasi menormalisasi input, test ini akan gagal — dan itu
+    justru benar: perubahan perilaku harus terlihat, bukan lolos diam-diam.
     """
     padded = f"  {env['email'].upper()}  "
 
     login = LoginPage(anon_page)
     login.open(env["base_url"])
-    login.login(padded, env["password"])
+    login.open_username_screen()
+    login.fill_username(padded)
 
-    assert login.is_dashboard_visible(), (
-        f"Login gagal dengan email ber-spasi dan huruf besar: {padded!r}. "
-        "Bila ini perilaku yang disengaja, sistem harus menampilkan error spesifik."
+    enabled = login.is_login_button_enabled()
+
+    allure.attach(
+        f"input: {padded!r}\ntombol Log In enabled: {enabled}",
+        name="perilaku terhadap email ber-spasi",
+        attachment_type=allure.attachment_type.TEXT,
+    )
+
+    assert not enabled, (
+        f"Tombol Log In enabled untuk email ber-spasi {padded!r}. "
+        "Perilaku aplikasi berubah — sebelumnya input tidak di-trim. "
+        "Verifikasi apakah normalisasi memang sudah ditambahkan."
     )

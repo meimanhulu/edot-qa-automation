@@ -1,84 +1,189 @@
 """
-LoginPage — alur login 3 layar eSuite.
+LoginPage — alur login eSuite via eDOT Account Center (OIDC).
 
-Alur dari brief:
-  1. klik "Use Email or Username"
-  2. submit email
-  3. submit password
-  4. redirect via eDOT Account Center, lalu KEMBALI ke eSuite
+ALUR SEBENARNYA (hasil inspeksi 09 Agustus 2026, berbeda dari brief):
 
-Langkah 4 sering terlewat: assert dashboard tepat setelah klik Sign In akan
-gagal karena browser masih di Account Center.
+    esuite.edot.id
+        ↓ redirect
+    cronus.edot.id/oidc/interaction/<id>      ← Account Center
+        ↓
+    Layar 1: tombol "Use Email or Username"
+        ↓
+    Layar 2: input[name=username]  → tombol "Log In"
+        ↓
+    Layar 3: input[name=password]  → tombol "Log In"
+        ↓ redirect balik
+    esuite.edot.id → "Welcome Back," + daftar company
+
+Brief menyebut tombolnya "Continue" lalu "Sign In". Kenyataannya KEDUANYA
+bertuliskan "Log In". Ditemukan saat inspeksi manual dan dicatat di README.
 """
+from urllib.parse import parse_qs, unquote, urlparse
+
 from playwright.sync_api import Page, expect
 
 from .base_page import BasePage
 
 # ---------------------------------------------------------------------------
-# SELECTOR — ganti nilainya setelah inspeksi DOM eSuite.
-# Prioritas: data-testid > role+name > atribut stabil > text (justifikasi).
-# Dikumpulkan di sini supaya saat DOM berubah, cukup satu blok yang disunting.
+# STRATEGI SELECTOR
+#
+# Aplikasi ini punya NOL data-testid (diverifikasi:
+# document.querySelectorAll('[data-testid]').length === 0), sehingga prioritas
+# pertama pada brief tidak tersedia. Yang dipakai, berurutan:
+#
+#   1. atribut stabil `name`  -> untuk kedua input (prioritas ke-3 brief)
+#   2. role + accessible name -> untuk semua tombol (prioritas ke-2 brief)
+#   3. text                   -> hanya untuk greeting dashboard, dijustifikasi
+#
+# Frontend memakai Radix UI, jadi role ARIA-nya benar dan get_by_role andal.
+# `id` yang ada bernilai "radix-:rd:" — di-generate ulang tiap render, jadi
+# TIDAK boleh dipakai sebagai selector.
 # ---------------------------------------------------------------------------
-SEL = {
-    # role + accessible name: tahan terhadap perubahan class/styling
-    "use_email_button": ("role", "button", "Use Email or Username"),
-    "email_input": ("label", "Email"),
-    "continue_button": ("role", "button", "Continue"),
-    "password_input": ("label", "Password"),
-    "signin_button": ("role", "button", "Sign In"),
-    # text sebagai pilihan terakhir — JUSTIFIKASI: greeting dashboard adalah
-    # teks statis tanpa data-testid maupun role semantik. Brief sendiri
-    # menyebut "Welcome Back," sebagai penanda yang diharapkan.
-    "dashboard_greeting": ("text", "Welcome Back,"),
-    "error_message": ("testid", "auth-error"),
-}
 
 
 class LoginPage(BasePage):
     def __init__(self, page: Page):
         super().__init__(page)
-        self.use_email_button = page.get_by_role("button", name=SEL["use_email_button"][2])
-        self.email_input = page.get_by_label(SEL["email_input"][1])
-        self.continue_button = page.get_by_role("button", name=SEL["continue_button"][2])
-        self.password_input = page.get_by_label(SEL["password_input"][1])
-        self.signin_button = page.get_by_role("button", name=SEL["signin_button"][2])
-        self.dashboard_greeting = page.get_by_text(SEL["dashboard_greeting"][1])
-        self.error_message = page.get_by_test_id(SEL["error_message"][1])
+
+        # Layar 1
+        self.use_email_button = page.get_by_role("button", name="Use Email or Username")
+
+        # Layar 2 dan 3.
+        # `:visible` WAJIB: pada layar 2, input[name=password] sudah ada di DOM
+        # sebagai type=hidden, dan pada layar 3 giliran input[name=username]
+        # yang tersembunyi. Tanpa filter ini, locator cocok ke elemen yang
+        # salah dan fill() gagal dengan pesan yang menyesatkan.
+        self.username_input = page.locator('input[name="username"]:visible')
+        self.password_input = page.locator('input[name="password"]:visible')
+
+        # Kedua layar memakai tombol dengan nama sama — "Log In".
+        self.login_button = page.get_by_role("button", name="Log In")
+
+        # Penanda dashboard setelah redirect balik ke eSuite.
+        # JUSTIFIKASI pemakaian text selector: greeting ini tidak punya
+        # data-testid maupun role semantik, dan brief sendiri menyebut
+        # "Welcome Back," sebagai penanda yang diharapkan.
+        self.dashboard_greeting = page.get_by_text("Welcome Back,")
+
+        # Pesan error. Account Center tidak memakai atribut khusus untuk ini,
+        # jadi dipakai role="alert" yang standar; error_text() punya fallback
+        # bila role tersebut ternyata tidak dipasang.
+        self.error_alert = page.get_by_role("alert")
+
+    # ------------------------------------------------------------------
+    # Aksi
+    # ------------------------------------------------------------------
 
     def open(self, base_url: str) -> None:
-        self.goto(base_url)
+        """
+        Buka eSuite; aplikasi akan me-redirect sendiri ke Account Center.
 
-    def submit_email(self, email: str) -> None:
-        """Layar 1 dan 2: buka form email, isi, lanjut."""
+        Menunggu tombol layar 1 muncul, bukan menunggu URL tertentu —
+        path OIDC mengandung interaction id yang berubah tiap sesi
+        (mis. /oidc/interaction/3NM_mdM8fPSq-BklYOgvA).
+        """
+        self.goto(base_url)
+        expect(self.use_email_button).to_be_visible()
+
+    def open_username_screen(self) -> None:
+        """Layar 1 → 2: buka form username tanpa mengisi apa pun."""
         self.use_email_button.click()
-        self.email_input.fill(email)
-        self.continue_button.click()
+        expect(self.username_input).to_be_visible()
+
+    def fill_username(self, username: str) -> None:
+        """Isi field username tanpa menekan Log In."""
+        self.username_input.fill(username)
+
+    def is_login_button_enabled(self) -> bool:
+        """
+        Status enabled tombol Log In.
+
+        Aplikasi men-disable tombol selama input belum valid — perilaku yang
+        benar. Test Negative untuk field kosong memverifikasi INI, bukan
+        mengklik lalu mengharap pesan error yang tidak akan pernah muncul.
+        """
+        return self.login_button.is_enabled()
+
+    def submit_username(self, username: str) -> None:
+        """Layar 1 → 2: buka form, isi username, kirim."""
+        self.open_username_screen()
+        self.fill_username(username)
+        self.login_button.click()
 
     def submit_password(self, password: str) -> None:
-        """Layar 3: isi password, kirim."""
+        """
+        Layar 3: isi password, kirim.
+
+        Menunggu password_input terlihat lebih dulu — itu penanda transisi
+        dari layar 2 ke layar 3 sudah selesai. Tanpa ini, fill() bisa
+        berjalan saat DOM masih menampilkan layar sebelumnya.
+        """
+        expect(self.password_input).to_be_visible()
         self.password_input.fill(password)
-        self.signin_button.click()
+        self.login_button.click()
 
-    def login(self, email: str, password: str) -> None:
+    def login(self, username: str, password: str) -> None:
         """
-        Jalankan ketiga layar sampai dashboard benar-benar termuat.
+        Jalankan seluruh alur sampai dashboard eSuite benar-benar termuat.
 
-        Baris terakhir menunggu greeting, BUKAN sleep. Itu yang menandai
-        redirect Account Center sudah selesai dan kita kembali di eSuite.
+        Baris terakhir menunggu greeting — itu yang menandai redirect balik
+        dari Account Center sudah selesai. Tanpa itu, test berikutnya bisa
+        berjalan saat browser masih berada di cronus.edot.id.
         """
-        self.submit_email(email)
+        self.submit_username(username)
         self.submit_password(password)
-        expect(self.dashboard_greeting).to_be_visible()
+
+        # Timeout diperpanjang: setelah password dikirim, browser melewati
+        # RANTAI redirect OIDC sebelum sampai ke dashboard —
+        #   /callback?code=... -> /oidc/token -> /authentication?access_token=...
+        # Timeout default expect() 5 detik tidak cukup; halaman masih
+        # menampilkan "Redirecting..." saat waktu habis.
+        expect(self.dashboard_greeting).to_be_visible(timeout=60000)
+
+    # ------------------------------------------------------------------
+    # Pembacaan
+    # ------------------------------------------------------------------
 
     def error_text(self) -> str:
         """
         Teks pesan error yang tampil.
 
-        Dipakai test Negative. Brief mensyaratkan assert pesan SPESIFIK,
+        Dipakai test Negative — brief mensyaratkan assert pesan SPESIFIK,
         bukan sekadar "masih di halaman login".
-        """
-        return self.text_of(self.error_message)
 
-    def is_dashboard_visible(self) -> bool:
-        """Dipakai test Negative untuk membuktikan dashboard TIDAK tercapai."""
-        return self.dashboard_greeting.is_visible()
+        Fallback ke pencarian teks bila role="alert" tidak dipasang:
+        lebih baik mengembalikan string kosong daripada melempar exception,
+        karena test yang memanggil ini sudah punya assert-nya sendiri.
+        """
+        # Account Center menaruh pesan error di QUERY PARAMETER, bukan di DOM.
+        # Contoh: /oidc/interaction/<id>?err=Incorrect%20password&srcPage=...
+        # Diperiksa lebih dulu karena ini sumber yang sebenarnya dipakai.
+        err = parse_qs(urlparse(self.page.url).query).get("err")
+        if err:
+            return unquote(err[0])
+
+        if self.error_alert.count() > 0:
+            text = self.text_of(self.error_alert.first)
+            if text.strip():
+                return text
+
+        candidates = self.page.locator("text=/incorrect|invalid|salah|tidak valid|required/i")
+        return self.text_of(candidates.first) if candidates.count() > 0 else ""
+
+    def is_dashboard_visible(self, timeout: int = 15000) -> bool:
+        """
+        Apakah greeting dashboard terlihat.
+
+        Memakai wait_for(), bukan is_visible(), karena halaman bisa masih
+        berada di tengah rantai redirect OIDC. is_visible() memeriksa saat
+        itu juga dan mengembalikan False untuk halaman yang sebenarnya
+        sedang dalam perjalanan.
+
+        Dipakai juga test Negative untuk membuktikan dashboard TIDAK tercapai —
+        di situ timeout dipendekkan agar test tidak menunggu sia-sia.
+        """
+        try:
+            self.dashboard_greeting.wait_for(state="visible", timeout=timeout)
+            return True
+        except Exception:
+            return False

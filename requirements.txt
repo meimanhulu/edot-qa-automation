@@ -1,18 +1,18 @@
 # --- Core ---
-pytest==8.3.4
-pytest-playwright==0.6.2
-playwright==1.49.1
+pytest==8.4.2
+pytest-playwright==0.8.0
+playwright==1.62.0
 
 # --- Reporting ---
-allure-pytest==2.13.5
+allure-pytest==2.16.0
 
 # --- Config ---
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 
 # --- AI test data (Phase 3A) ---
-pydantic==2.10.4          # schema validation sebelum data dikonsumsi test
-faker==33.1.0             # fallback deterministik saat tanpa API key
-anthropic==0.42.0         # ganti sesuai model yang dipilih; dokumentasikan di AI_USAGE.md
+pydantic==2.13.4          # schema validation sebelum data dikonsumsi test
+faker==40.36.0            # fallback deterministik saat tanpa API key
+anthropic==0.121.0        # ganti sesuai model yang dipilih; dokumentasikan di AI_USAGE.md
 
 # --- AI triage (Phase 3B) ---
 # tidak ada dependency tambahan: baca allure-results/*.json dengan stdlib json

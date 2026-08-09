@@ -109,3 +109,23 @@ docs/           spec-kit prompts, panduan Maestro, dokumen test case
 - [ ] Laporan triage dari run yang **sengaja digagalkan**
 - [ ] Catatan jujur soal skenario yang tidak selesai
 - [ ] Bila memakai kredensial mobile fallback, catat di sini
+
+Yang harus diisi sebelum submit
+ Link repo ini ke dalam dokumen test case (Excel/Google Sheet)
+ AI_USAGE.md — lima poin yang diminta brief
+ Laporan Allure dari satu run web penuh
+ Laporan triage dari run yang sengaja digagalkan
+ Catatan jujur soal skenario yang tidak selesai
+ Bila memakai kredensial mobile fallback, catat di sini
+Temuan saat inspeksi manual (berbeda dari brief)
+
+Dicatat karena memengaruhi implementasi, dan karena reviewer perlu tahu keputusan selector diambil atas dasar apa.
+
+Temuan	Dampak
+Nol data-testid di seluruh aplikasi (diverifikasi via document.querySelectorAll('[data-testid]').length === 0)	Prioritas pertama brief tidak tersedia. Dipakai name (atribut stabil) untuk input dan role + accessible name untuk tombol.
+Tombol layar 2 dan 3 sama-sama "Log In", bukan "Continue" lalu "Sign In" seperti tertulis di brief	Satu locator dipakai untuk kedua layar; transisi antar layar ditandai dengan menunggu input yang relevan terlihat.
+Login lewat OIDC di cronus.edot.id/oidc/interaction/<id>	Path mengandung interaction id yang berubah tiap sesi, jadi penantian berbasis URL tidak dipakai — yang ditunggu adalah elemennya.
+Input tersembunyi bernama sama — input[name=password] sudah ada sebagai type=hidden di layar 2, begitu pula username di layar 3	Locator memakai filter :visible. Tanpa itu, locator cocok ke elemen tersembunyi dan fill() gagal dengan pesan menyesatkan.
+id bernilai radix-:rd: (Radix UI, di-generate ulang tiap render)	Tidak dipakai sebagai selector. Sisi baiknya, Radix memberi role ARIA yang benar sehingga get_by_role andal.
+Setelah login, landing page menampilkan daftar company beserta greeting "Welcome Back,"	TC-WEB-001 tetap valid: greeting ada di halaman ini.
+Akun uji memiliki 571 company; company QA Production (ID 5049209) berstatus Active sampai 27/04/2027	ID tersebut sama dengan fallback mobile pada brief. Pencarian company wajib lewat search, bukan memindai halaman pertama.
