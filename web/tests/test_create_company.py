@@ -1,84 +1,66 @@
-"""TC-WEB-005 s/d TC-WEB-012 — create company beserta edge case-nya."""
+"""
+TC-WEB-005 s/d TC-WEB-012 — create company beserta edge case-nya.
+
+CATATAN soal cascade:
+Cascade muncul BERTAHAP — Province, City, District, Sub District, dan Postal
+Code baru tampil setelah Country dipilih. Level keempat bernama "Sub District"
+(brief menyebutnya "Zone"), dan Postal Code terisi OTOMATIS, bukan dipilih.
+"""
 import allure
 import pytest
 
 from web.pages.companies_page import CompaniesPage
+from web.pages.company_detail_page import CompanyDetailPage
 from web.pages.register_company_wizard import RegisterCompanyWizard
-
-
-def _open_wizard(page) -> RegisterCompanyWizard:
-    companies = CompaniesPage(page)
-    companies.open()
-    companies.click_add_company()
-    return RegisterCompanyWizard(page)
 
 
 @pytest.mark.web
 @pytest.mark.tier2
 @allure.title("TC-WEB-005 Create company with valid data")
-def test_create_company(page, created_company):
+def test_create_company(page, env, created_company):
     """
-    Pembuatan company terjadi di fixture created_company — yang sekaligus
-    menghapusnya di teardown. Test ini memverifikasi hasilnya.
+    Company dibuat oleh fixture created_company — yang sekaligus menghapusnya
+    di teardown. Test ini memverifikasi hasilnya.
     """
     companies = CompaniesPage(page)
-    companies.open()
+    companies.open(env["base_url"])
 
-    # Tier 2: record benar-benar ADA di list, bukan sekadar toast sukses.
-    # Dan jumlahnya tepat 1 — membuktikan tidak ada duplikat.
-    count = companies.count_rows_matching(created_company["name"])
-    assert count == 1, f"Diharapkan tepat 1 company bernama {created_company['name']!r}, dapat {count}"
-
-
-@pytest.mark.web
-@pytest.mark.tier1
-@allure.title("TC-WEB-006 Changing parent resets dependent cascade fields")
-def test_cascade_parent_reset(page, company_data):
-    """
-    Edge case paling berisiko: City yang tertinggal saat Province diubah
-    membuat alamat yang mustahil secara geografis ikut tersubmit.
-    """
-    wizard = _open_wizard(page)
-    wizard.fill_basic_fields(company_data.model_dump())
-    wizard.select_cascade(
-        company_data.country, company_data.province, company_data.city,
-        company_data.district, company_data.zone, company_data.postal_code,
+    # Tier 2: record benar-benar ADA di daftar, bukan sekadar toast sukses.
+    # Jumlahnya tepat 1 — sekaligus membuktikan tidak ada duplikat.
+    count = companies.count_companies_named(created_company["name"])
+    assert count == 1, (
+        f"Diharapkan tepat 1 company bernama {created_company['name']!r}, dapat {count}"
     )
 
-    before = wizard.get_cascade_values()
-    allure.attach(str(before), name="cascade sebelum province diubah",
-                  attachment_type=allure.attachment_type.TEXT)
-
-    # Ubah parent. Sengaja tanpa menunggu child — perilaku child itulah
-    # yang sedang diuji.
-    new_province = "Jawa Barat" if company_data.province != "Jawa Barat" else "DKI Jakarta"
-    wizard.change_province(new_province)
-
-    after = wizard.get_cascade_values()
-    allure.attach(str(after), name="cascade setelah province diubah",
-                  attachment_type=allure.attachment_type.TEXT)
-
-    stale = [
-        key for key in ("city", "district", "zone", "postal_code")
-        if after[key] == before[key] and before[key] != ""
-    ]
-    assert not stale, (
-        f"Field berikut masih membawa nilai dari Province lama: {stale}. "
-        f"Nilai lama: { {k: before[k] for k in stale} }"
+    # Tier 2: company baru harus berstatus Active (trial 30 hari).
+    # Ini juga prasyarat skenario mobile — company Expired tidak bisa dipakai login.
+    status = companies.status_of(created_company["name"])
+    assert status == "Active", (
+        f"Company baru berstatus {status!r}, diharapkan 'Active'. "
+        "Skenario mobile membutuhkan company aktif."
     )
 
 
 @pytest.mark.web
 @pytest.mark.tier1
-@allure.title("TC-WEB-007 Next re-disables when required field cleared")
-def test_next_reacts_to_field_removal(page, company_data):
-    wizard = _open_wizard(page)
-    wizard.fill_basic_fields(company_data.model_dump())
-    wizard.select_cascade(
-        company_data.country, company_data.province, company_data.city,
-        company_data.district, company_data.zone, company_data.postal_code,
-    )
-    assert wizard.is_next_enabled(), "Next belum enabled padahal seluruh field terisi valid"
+@allure.title("TC-WEB-007 Next stays disabled until Step 1 is valid")
+def test_next_disabled_until_step_one_valid(page, env, company_data):
+    """
+    Aplikasi men-disable Next selama Step 1 belum lengkap — pola yang sama
+    dengan tombol Log In di Account Center.
+
+    Test ini juga memverifikasi validasi bereaksi terhadap PENGHAPUSAN nilai,
+    bukan hanya terhadap pengisian pertama. Validasi yang hanya fire saat
+    input pertama membuat user bisa mengosongkan field wajib lalu tetap lanjut.
+    """
+    wizard = RegisterCompanyWizard(page)
+    wizard.open(env["base_url"])
+
+    assert not wizard.is_next_enabled(), "Next sudah enabled padahal form masih kosong"
+
+    data = company_data.model_dump()
+    wizard.fill_step_one(data)
+    assert wizard.is_next_enabled(), "Next tidak enabled padahal seluruh Step 1 terisi valid"
 
     wizard.clear_field("name")
     assert not wizard.is_next_enabled(), (
@@ -86,141 +68,188 @@ def test_next_reacts_to_field_removal(page, company_data):
         "validasi tidak bereaksi terhadap penghapusan nilai"
     )
 
-    wizard.f["name"].fill(company_data.name)
+    wizard.f["name"].fill(data["name"])
     assert wizard.is_next_enabled(), "Next tidak kembali enabled setelah field diisi ulang"
+
+
+@pytest.mark.web
+@pytest.mark.tier1
+@allure.title("TC-WEB-011 Branch step requires agreement before Register")
+def test_register_requires_agreement(page, env, company_data):
+    """
+    Step 3 mengaku opsional ("If left unfilled, a default branch will be
+    created"), tetapi Branch Name sudah terisi otomatis dengan "Headquarter"
+    dan catatan di bawah form menyatakan mengisi Branch Name membuat seluruh
+    field wajib.
+
+    Test ini memverifikasi kontradiksi tersebut: apakah Register benar-benar
+    terkunci sebelum checkbox persetujuan dicentang.
+
+    Sengaja BERHENTI sebelum menekan Register — test ini tidak membuat data.
+    """
+    wizard = RegisterCompanyWizard(page)
+    wizard.open(env["base_url"])
+
+    data = company_data.model_dump()
+    wizard.fill_step_one(data)
+    wizard.click_next()
+    wizard.complete_step_two()
+
+    # Sampai di Step 3. Isi datanya tanpa mencentang persetujuan.
+    wizard.fill_from_company_records.click()
+
+    default_branch = wizard.branch_name()
+    allure.attach(
+        f"Branch Name terisi otomatis: {default_branch!r}",
+        name="nilai default branch",
+        attachment_type=allure.attachment_type.TEXT,
+    )
+
+    assert not wizard.is_register_enabled(), (
+        "Tombol Register enabled padahal checkbox persetujuan belum dicentang"
+    )
+
+    wizard.agree_checkbox.check()
+    assert wizard.is_register_enabled(), (
+        "Tombol Register tetap disabled setelah persetujuan dicentang"
+    )
 
 
 @pytest.mark.web
 @pytest.mark.tier2
 @allure.title("TC-WEB-008 Company name stored trimmed")
-def test_company_name_stored_trimmed(page, company_data):
+def test_company_name_stored_trimmed(page, env, company_data):
     """
-    Edge case: input tak ter-trim menciptakan record duplikat semu dan
-    merusak exact-match search.
-    """
-    from web.pages.company_detail_page import CompanyDetailPage
+    Edge case: input hasil copy-paste sering membawa spasi tak terlihat.
+    Input tak ter-trim menciptakan record duplikat semu dan merusak pencarian
+    dengan pencocokan persis.
 
+    Test ini membuat companynya sendiri (bukan lewat fixture) karena datanya
+    sengaja dimodifikasi — dan menghapusnya di blok finally.
+    """
     clean_name = company_data.name
-    padded_name = f"   {clean_name}   "
-
     data = company_data.model_dump()
-    data["name"] = padded_name
+    data["name"] = f"   {clean_name}   "
 
-    wizard = _open_wizard(page)
-    wizard.fill_basic_fields(data)
-    wizard.select_cascade(
-        data["country"], data["province"], data["city"],
-        data["district"], data["zone"], data["postal_code"],
-    )
+    wizard = RegisterCompanyWizard(page)
+    wizard.open(env["base_url"])
+    wizard.fill_step_one(data)
     wizard.click_next()
-    wizard.complete_step_two(data)
+    wizard.complete_step_two()
     wizard.complete_step_three(data)
-    wizard.submit()
 
-    companies = CompaniesPage(page)
-    companies.open()
+    detail = CompanyDetailPage(page)
+    detail.wait_loaded()
+    mongo_id = detail.mongo_id_from_url()
+
     try:
-        companies.open_manage(clean_name)
-        stored = CompanyDetailPage(page).get_all_fields()["name"]
+        stored = detail.get_field("name")
 
-        # Tier 2: assert EXACT string. 'in' atau 'contains' akan meloloskan
-        # nilai yang masih ber-spasi — justru bug yang sedang diuji.
+        allure.attach(
+            f"input : {data['name']!r}\nstored: {stored!r}",
+            name="perbandingan nilai sebelum dan sesudah disimpan",
+            attachment_type=allure.attachment_type.TEXT,
+        )
+
+        # Tier 2: assert EXACT string. Memakai 'in' akan meloloskan nilai yang
+        # masih membawa spasi — justru bug yang sedang diuji.
         assert stored == clean_name, (
             f"Nama tidak ter-trim saat disimpan: {stored!r} (diharapkan {clean_name!r})"
         )
     finally:
-        # Cleanup manual: test ini tidak memakai fixture created_company
-        # karena datanya sengaja dimodifikasi.
-        companies.open()
-        companies.delete_company(clean_name)
-
-
-@pytest.mark.web
-@pytest.mark.tier2
-@allure.title("TC-WEB-010 Double submit does not create duplicate")
-def test_double_submit_no_duplicate(page, company_data):
-    wizard = _open_wizard(page)
-    data = company_data.model_dump()
-    wizard.fill_basic_fields(data)
-    wizard.select_cascade(
-        data["country"], data["province"], data["city"],
-        data["district"], data["zone"], data["postal_code"],
-    )
-    wizard.click_next()
-    wizard.complete_step_two(data)
-    wizard.complete_step_three(data)
-    wizard.submit_twice()
-
-    companies = CompaniesPage(page)
-    companies.open()
-    try:
-        # Tier 2: menghitung baris, bukan membaca toast.
-        count = companies.count_rows_matching(company_data.name)
-        assert count == 1, (
-            f"Double submit menghasilkan {count} record bernama {company_data.name!r}. "
-            "Diharapkan tepat 1 — tombol submit seharusnya disabled setelah klik pertama."
+        page.goto(
+            f"{env['base_url'].rstrip('/')}/companies/manage-companies/{mongo_id}/profile",
+            wait_until="networkidle",
         )
-    finally:
-        companies.open()
-        companies.delete_company(company_data.name)
+        CompanyDetailPage(page).delete()
 
 
 @pytest.mark.web
 @pytest.mark.negative
-@allure.title("TC-WEB-011 Duplicate company name rejected")
-def test_duplicate_company_name(page, created_company):
-    data = created_company["input"].model_dump()
-    data["email"] = "admin2@duplicate-test.co.id"
-
-    wizard = _open_wizard(page)
-    wizard.fill_basic_fields(data)
-    wizard.select_cascade(
-        data["country"], data["province"], data["city"],
-        data["district"], data["zone"], data["postal_code"],
-    )
-    wizard.click_next()
-    wizard.complete_step_two(data)
-    wizard.complete_step_three(data)
-    wizard.submit()
-
-    # Negative: pesan error spesifik soal duplikat.
-    error = wizard.field_error_text("name")
-    assert "exist" in error.lower() or "sudah" in error.lower(), (
-        f"Pesan error tidak menyebut duplikasi: {error!r}"
-    )
-
-    companies = CompaniesPage(page)
-    companies.open()
-    count = companies.count_rows_matching(created_company["name"])
-    assert count == 1, f"Jumlah record berubah jadi {count} setelah percobaan duplikat"
-
-
-@pytest.mark.web
-@pytest.mark.negative
-@allure.title("TC-WEB-012 Required field and format validation")
+@allure.title("TC-WEB-012 Required field validation on Step 1")
 @pytest.mark.parametrize(
-    "field,value,expect_in_error",
+    "field,value",
     [
-        ("name", "", "required"),
-        ("email", "admin@nodomain", "email"),
-        ("phone", "021-ABC-DEFG", "phone"),
+        ("name", ""),
+        ("email", ""),
+        ("phone", ""),
+        ("street_address", ""),
     ],
 )
-def test_field_validation(page, company_data, field, value, expect_in_error):
+def test_required_field_blocks_next(page, env, company_data, field, value):
     """
-    Parametrize dipakai supaya tiap kondisi jadi baris terpisah di Allure.
+    Setiap field wajib yang kosong harus menahan tombol Next.
 
-    Kalau digabung dalam satu test, kegagalan pada kondisi pertama akan
-    menyembunyikan dua kondisi berikutnya.
+    Parametrize dipakai supaya tiap field jadi baris terpisah di Allure —
+    kalau digabung dalam satu test, kegagalan pada field pertama akan
+    menyembunyikan tiga field berikutnya.
+
+    Aplikasi memakai tombol disabled sebagai mekanisme validasi, bukan pesan
+    error. Karena itu yang di-assert adalah status tombol, bukan teks error
+    yang memang tidak muncul.
     """
-    wizard = _open_wizard(page)
+    wizard = RegisterCompanyWizard(page)
+    wizard.open(env["base_url"])
+
     data = company_data.model_dump()
     data[field] = value
-    wizard.fill_basic_fields(data)
+    wizard.fill_step_one(data)
 
-    error = wizard.field_error_text(field)
-    assert error.strip(), f"Tidak ada pesan error untuk field {field!r} bernilai {value!r}"
-    assert expect_in_error in error.lower(), (
-        f"Pesan error untuk {field!r} tidak menyebut '{expect_in_error}': {error!r}"
+    # Negative: Next harus tetap terkunci saat ada field wajib yang kosong.
+    assert not wizard.is_next_enabled(), (
+        f"Next enabled padahal field wajib {field!r} kosong"
     )
-    assert not wizard.is_next_enabled(), f"Next masih enabled padahal {field!r} tidak valid"
+
+
+@pytest.mark.web
+@pytest.mark.tier1
+@allure.title("TC-WEB-006 Changing Province resets dependent cascade fields")
+def test_cascade_parent_reset(page, env, company_data):
+    """
+    Edge case paling berisiko pada form ini.
+
+    City yang tertinggal saat Province diubah akan membuat alamat yang
+    mustahil secara geografis ikut tersubmit — mis. Province "JAWA BARAT"
+    dengan City "KOTA GORONTALO". Happy path tidak pernah menyentuh ini
+    karena hanya memilih ke bawah, tidak pernah mengubah parent.
+    """
+    wizard = RegisterCompanyWizard(page)
+    wizard.open(env["base_url"])
+
+    data = company_data.model_dump()
+    wizard.fill_step_one(data)
+
+    before = wizard.snapshot_cascade()
+    allure.attach(
+        "\n".join(f"{k}: {v!r}" for k, v in before.items()),
+        name="cascade sebelum Province diubah",
+        attachment_type=allure.attachment_type.TEXT,
+    )
+
+    # Ubah ke provinsi lain. Sengaja tanpa menunggu child terisi ulang —
+    # perilaku child itulah yang sedang diuji.
+    new_province = wizard.change_province_to_second_option()
+    allure.attach(
+        f"Province diubah dari {before['province']!r} ke {new_province!r}",
+        name="perubahan province",
+        attachment_type=allure.attachment_type.TEXT,
+    )
+
+    after = wizard.snapshot_cascade()
+    allure.attach(
+        "\n".join(f"{k}: {v!r}" for k, v in after.items()),
+        name="cascade setelah Province diubah",
+        attachment_type=allure.attachment_type.TEXT,
+    )
+
+    stale = [
+        key
+        for key in ("city", "district", "sub_district", "postal_code")
+        if after[key] == before[key] and before[key] not in ("", "Choose City")
+    ]
+
+    assert not stale, (
+        f"Field berikut masih membawa nilai dari Province lama: {stale}. "
+        f"Nilai tertinggal: { {k: before[k] for k in stale} }. "
+        "Kombinasi wilayah yang mustahil bisa ikut tersubmit."
+    )

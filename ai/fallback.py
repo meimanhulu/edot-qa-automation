@@ -18,25 +18,86 @@ from .schemas import CompanyData, CustomerData
 
 fake = Faker("id_ID")
 
-# Kombinasi wilayah yang dipastikan valid di cascade eSuite.
-# TODO(verifikasi): cocokkan dengan opsi asli di dropdown setelah inspeksi manual.
+# Kombinasi wilayah yang DIVERIFIKASI valid di cascade eSuite.
+#
+# Rantai ini disalin dari hasil pemilihan manual di aplikasi, bukan dikarang.
+#
+# Pelajaran: rantai "KOTA TENGAH > TAPA" sempat dipakai dan SALAH — TAPA
+# berada di bawah SIPATANA. Kesalahan seperti ini muncul sebagai timeout,
+# bukan pesan error, sehingga terlihat seperti aplikasi yang rusak.
+# Jangan menambah entri tanpa memverifikasinya langsung di aplikasi.
+# Cascade menolak kombinasi yang tidak sah, dan kegagalannya berupa timeout
+# tanpa pesan — jadi data yang salah terlihat seperti aplikasi yang rusak.
+#
+# postal_code TIDAK disertakan: aplikasi mengisinya OTOMATIS setelah
+# Sub District dipilih. Nilainya dibaca dari form, bukan ditentukan di sini.
 REGIONS = [
     {
-        "country": "Indonesia", "province": "DKI Jakarta", "city": "Jakarta Selatan",
-        "district": "Setiabudi", "zone": "Kuningan", "postal_code": "12920",
+        "country": "Indonesia",
+        "province": "GORONTALO",
+        "city": "KOTA GORONTALO",
+        "district": "SIPATANA",
+        "sub_district": "MOLOSIFAT U",
     },
     {
-        "country": "Indonesia", "province": "DKI Jakarta", "city": "Jakarta Pusat",
-        "district": "Menteng", "zone": "Menteng", "postal_code": "10310",
+        "country": "Indonesia",
+        "province": "GORONTALO",
+        "city": "KOTA GORONTALO",
+        "district": "SIPATANA",
+        "sub_district": "TAPA",
     },
     {
-        "country": "Indonesia", "province": "Jawa Barat", "city": "Bandung",
-        "district": "Coblong", "zone": "Dago", "postal_code": "40135",
+        "country": "Indonesia",
+        "province": "GORONTALO",
+        "city": "KOTA GORONTALO",
+        "district": "KOTA TENGAH",
+        "sub_district": "DULALOWO TIMUR",
     },
 ]
 
-INDUSTRY_TYPES = ["Retail", "Manufacturing", "Services", "Technology"]
-COMPANY_TYPES = ["PT", "CV", "UD"]
+INDUSTRY_TYPES = [
+    "Retail",
+    "Real Estate",
+    "Manufacturing",
+    "Hospitality",
+    "Food & Beverage",
+    "Finance and Banking",
+    "Transportation and Logistics",
+    "Telecommunications",
+    "Technology",
+    "Construction",
+    "Automotive",
+    "Entertainment and Media",
+    "Energy",
+    "Agriculture",
+    "Healthcare",
+    "Education",
+]
+
+# Company Type BUKAN bentuk badan hukum (PT/CV/UD) seperti dugaan awal,
+# melainkan peran bisnis dalam rantai pasok.
+COMPANY_TYPES = [
+    "Importer/Exporter",
+    "Consignor/Consignee",
+    "Marketplace",
+    "Retailer",
+    "Service Aggregator",
+    "Third-Party Logistics (3PL) Provider",
+    "Holding Company",
+    "Cooperative (Co-op)",
+    "Franchisee/Franchisor",
+    "Manufacturer",
+    "Principal",
+    "Agent",
+    "Dropshipper",
+    "Freight Forwarder",
+    "Distributor",
+    "Service",
+    "Service Provider",
+]
+
+# Hanya dua bahasa tersedia.
+LANGUAGES = ["Indonesia", "English"]
 COMPANY_PREFIXES = ["PT", "CV"]
 BUSINESS_WORDS = ["Sinar", "Berkah", "Sejahtera", "Mandiri", "Jaya", "Rejeki", "Nusantara"]
 
@@ -60,8 +121,17 @@ def _email_from_name(name: str) -> str:
 
 
 def _phone() -> str:
-    """Nomor kantor Jakarta: 021 + 8 digit. Digit murni, sesuai schema."""
-    return "021" + "".join(str(random.randint(0, 9)) for _ in range(8))
+    """
+    Nomor telepon TANPA kode negara: diawali 8, total 11 digit.
+
+    Form eSuite menampilkan +62 sebagai prefix terpisah, sehingga field
+    input hanya menerima nomor lokal tanpa 0 di depan. Contoh yang diterima
+    aplikasi: 81982913977.
+
+    Diverifikasi lewat pengisian manual — nomor berformat 021xxxxxxxx
+    membuat tombol Next tetap terkunci tanpa pesan error apa pun.
+    """
+    return "8" + "".join(str(random.randint(0, 9)) for _ in range(10))
 
 
 def faker_company() -> CompanyData:
@@ -75,7 +145,7 @@ def faker_company() -> CompanyData:
         phone=_phone(),
         industry_type=random.choice(INDUSTRY_TYPES),
         company_type=random.choice(COMPANY_TYPES),
-        language="Indonesia",
+        language=random.choice(LANGUAGES),
         street_address=f"Jl. {fake.street_name()} No. {random.randint(1, 200)}",
         **region,
     )

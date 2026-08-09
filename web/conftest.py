@@ -13,6 +13,7 @@ import pytest
 from playwright.sync_api import sync_playwright
 
 from web.pages.companies_page import CompaniesPage
+from web.pages.company_detail_page import CompanyDetailPage
 from web.pages.login_page import LoginPage
 from web.pages.register_company_wizard import RegisterCompanyWizard
 
@@ -118,51 +119,76 @@ def screenshot_on_failure(request):
 @pytest.fixture
 def created_company(page, env, company_data):
     """
-    Buat company, serahkan datanya ke test, HAPUS di teardown.
+    Buat company lewat wizard 3 langkah, serahkan ke test, HAPUS di teardown.
 
-    Cleanup ada di fixture — bukan sebagai langkah terakhir di dalam test —
-    supaya tetap jalan meski test gagal di tengah.
+    Cleanup ada di fixture — bukan di baris terakhir test — supaya tetap
+    berjalan meski test gagal di tengah. Brief menyebut "test data left
+    behind on the shared environment" sebagai non-negotiable failure.
 
-    Brief: "Test data left behind on the shared environment" adalah
-    non-negotiable failure.
+    Yang dikembalikan:
+        input       objek CompanyData yang dipakai mengisi form
+        name        nama company, untuk pencarian di daftar
+        company_id  ID yang tampil di halaman detail (dipakai skenario mobile)
+        mongo_id    ID pada URL, untuk menguji akses langsung setelah delete
     """
-    companies = CompaniesPage(page)
-    companies.open()
-    companies.click_add_company()
-
     wizard = RegisterCompanyWizard(page)
-    wizard.fill_basic_fields(company_data.model_dump())
-    wizard.select_cascade(
-        country=company_data.country,
-        province=company_data.province,
-        city=company_data.city,
-        district=company_data.district,
-        zone=company_data.zone,
-        postal_code=company_data.postal_code,
-    )
+    wizard.open(env["base_url"])
+
+    data = company_data.model_dump()
+
+    # fill_step_one mengembalikan nilai dropdown yang BENAR-BENAR terpilih.
+    # Digabung ke data supaya verifikasi Tier 2 membandingkan terhadap apa
+    # yang masuk ke form, bukan terhadap nilai yang diasumsikan.
+    chosen = wizard.fill_step_one(data)
+    data.update(chosen)
+
     wizard.click_next()
-    wizard.complete_step_two(company_data.model_dump())
-    wizard.complete_step_three(company_data.model_dump())
-    wizard.submit()
+    wizard.complete_step_two()
+    wizard.complete_step_three(data)
 
-    yield {"input": company_data, "name": company_data.name}
+    # Setelah Register, aplikasi mengarahkan ke halaman detail company baru.
+    detail = CompanyDetailPage(page)
+    detail.wait_loaded()
 
-    # ---- teardown: selalu jalan ----
+    info = {
+        "input": company_data,
+        "submitted": data,          # data teks + nilai dropdown yang terpilih
+        "name": company_data.name,
+        "company_id": detail.company_id(),
+        "mongo_id": detail.mongo_id_from_url(),
+    }
+
+    allure.attach(
+        "\n".join(f"{k}: {v!r}" for k, v in data.items())
+        + f"\n\ncompany_id: {info['company_id']}\nmongo_id: {info['mongo_id']}",
+        name="company yang dibuat fixture",
+        attachment_type=allure.attachment_type.TEXT,
+    )
+
+    yield info
+
+    # ---- teardown: selalu jalan, apa pun hasil test ----
     try:
-        companies.open()
-        companies.delete_company(company_data.name)
-        remaining = companies.count_rows_matching(company_data.name)
+        page.goto(
+            f"{env['base_url'].rstrip('/')}/companies/manage-companies/{info['mongo_id']}/profile",
+            wait_until="networkidle",
+        )
+        CompanyDetailPage(page).delete()
+
+        companies = CompaniesPage(page)
+        companies.open(env["base_url"])
+        remaining = companies.count_companies_named(info["name"])
         if remaining != 0:
             allure.attach(
                 f"Cleanup TIDAK bersih: masih ada {remaining} record bernama "
-                f"{company_data.name!r}. Hapus manual di eSuite.",
+                f"{info['name']!r}. Hapus manual di eSuite.",
                 name="cleanup-warning",
                 attachment_type=allure.attachment_type.TEXT,
             )
     except Exception as e:
         allure.attach(
             f"Cleanup gagal: {type(e).__name__}: {e}\n"
-            f"Company {company_data.name!r} kemungkinan masih tertinggal.",
+            f"Company {info['name']!r} (id {info['company_id']}) kemungkinan masih tertinggal.",
             name="cleanup-error",
             attachment_type=allure.attachment_type.TEXT,
         )

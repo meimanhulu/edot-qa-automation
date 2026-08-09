@@ -25,8 +25,12 @@ class CompanyData(BaseModel):
     province: str = Field(min_length=1)
     city: str = Field(min_length=1)
     district: str = Field(min_length=1)
-    zone: str = Field(min_length=1)
-    postal_code: str
+    sub_district: str = Field(min_length=1)
+
+    # postal_code diisi OTOMATIS oleh aplikasi setelah Sub District dipilih,
+    # jadi tidak perlu disediakan sebagai data input. Disimpan opsional agar
+    # nilai hasil pembacaan form bisa ditaruh di sini saat verifikasi.
+    postal_code: str = ""
 
     @field_validator("name", "street_address", "city", "province")
     @classmethod
@@ -55,21 +59,35 @@ class CompanyData(BaseModel):
         """
         Nomor telepon harus digit murni.
 
+        Form eSuite menampilkan +62 sebagai prefix terpisah, sehingga field
+        hanya menerima nomor lokal yang diawali 8 (mis. 81982913977).
+
         Model sering mengembalikan '021-5099-8877' atau '+62 21 5099 8877'.
-        Form eSuite menolaknya, dan test akan gagal karena DATANYA — bukan
-        karena aplikasinya. Ditangkap di sini supaya jelas penyebabnya.
+        Aplikasi menolaknya secara SENYAP — tombol Next tetap terkunci tanpa
+        pesan error. Ditangkap di sini supaya kegagalan menyebut penyebab
+        sebenarnya, bukan berupa timeout yang membingungkan.
         """
         if not v.isdigit():
             raise ValueError(f"phone harus digit saja, dapat: {v!r}")
-        if not 8 <= len(v) <= 15:
+        if not v.startswith("8"):
+            raise ValueError(
+                f"phone harus diawali 8 (tanpa 0 maupun +62), dapat: {v!r}. "
+                "Form eSuite menampilkan +62 sebagai prefix terpisah."
+            )
+        if not 10 <= len(v) <= 13:
             raise ValueError(f"panjang phone tidak wajar: {len(v)} digit")
         return v
 
     @field_validator("postal_code")
     @classmethod
     def postal_five_digits(cls, v: str) -> str:
-        """Kode pos Indonesia selalu 5 digit."""
-        if not (v.isdigit() and len(v) == 5):
+        """
+        Kode pos Indonesia selalu 5 digit.
+
+        Boleh kosong: aplikasi mengisinya otomatis, jadi data input tidak
+        perlu menyediakannya. Validasi tetap berlaku bila nilainya ada.
+        """
+        if v and not (v.isdigit() and len(v) == 5):
             raise ValueError(f"postal_code harus 5 digit, dapat: {v!r}")
         return v
 

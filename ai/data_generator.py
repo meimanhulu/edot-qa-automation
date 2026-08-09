@@ -39,7 +39,8 @@ Return ONLY a JSON object. No markdown fences, no explanation, no extra text.
 Required keys and constraints:
   name            PT or CV company name, max 100 chars
   email           lowercase, derived from the company name, domain .co.id
-  phone           DIGITS ONLY, no spaces or dashes, Jakarta landline format (021 + 8 digits)
+  phone           DIGITS ONLY, no spaces or dashes, no country code, no leading zero.
+                  Must start with 8 and be 11 digits total, e.g. 81982913977
   industry_type   one of: Retail, Manufacturing, Services, Technology
   company_type    one of: PT, CV, UD
   language        "Indonesia"
@@ -84,7 +85,7 @@ def _call_model(prompt: str) -> dict:
         messages=[{"role": "user", "content": prompt}],
     )
 
-    raw = response.content[0].text.strip()
+    raw = next((b.text for b in response.content if b.type == "text"), "").strip()
 
     # Model kadang tetap membungkus dengan ```json meski diminta tidak.
     if raw.startswith("```"):
@@ -153,3 +154,4 @@ def generate_company() -> tuple[CompanyData, str]:
 
 def generate_customer() -> tuple[CustomerData, str]:
     return _generate(CUSTOMER_PROMPT, CustomerData, faker_customer, "customer data")
+
