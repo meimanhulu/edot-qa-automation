@@ -1,153 +1,289 @@
 """
-RegisterCompanyWizard — wizard 3 langkah Register Company.
+RegisterCompanyWizard — wizard 3 langkah di /companies/registration-companies.
 
-Bagian tersulit: cascade dependen
-    Country > Province > City > District > Zone > Postal Code
+STRUKTUR SEBENARNYA (hasil inspeksi 09 Agustus 2026):
 
-Tiap child baru terisi setelah parent dipilih, dan Next tetap disabled
-sampai seluruh Step 1 valid.
+ALUR LENGKAP:
+    Step 1/3  Register Company    4 input + 4 combobox        -> Next
+    Step 2/3  Register Legal      Legal Document (opsional)   -> Next
+    Step 3/3  Create Your Branch  Branch Name (auto-isi),
+                                  Street Address, Country,
+                                  checkbox persetujuan        -> Register
+
+Step 1 berisi:
+
+    Company Name*     input[placeholder="Input Company Name"]
+    Email*            input[placeholder="Input Email"]
+    Phone*            [flag +62] input[placeholder="Input Phone"]
+    Industry Type*    button[role=combobox] "Choose Industry Type"
+    Company Type*     button[role=combobox] "Choose Company Type"
+    Language*         button[role=combobox] "Choose Language"
+    Street Address*   input[placeholder="Input Address"]
+    Country*          button[role=combobox] "Choose Country"
+                                                              [Next]
+
+TIGA TEMUAN YANG MEMBENTUK IMPLEMENTASI INI:
+
+1. CASCADE TIDAK ADA DI STEP 1.
+   Brief menyebut Country > Province > City > District > Zone > Postal Code
+   berada di Step 1. Kenyataannya Step 1 hanya punya Country. Lima level
+   sisanya baru muncul di halaman Manage Company setelah company dibuat.
+
+2. SEMUA DROPDOWN ADALAH button[role=combobox], BUKAN <select>.
+   Diverifikasi: querySelectorAll('select') mengembalikan nol elemen.
+   Konsekuensinya select_option() TIDAK BISA dipakai sama sekali —
+   dropdown harus diklik untuk membuka, lalu opsinya diklik.
+
+3. FIELD TIDAK PUNYA ATRIBUT name.
+   Yang tersedia hanya placeholder, sehingga get_by_placeholder() menjadi
+   pilihan terbaik yang ada. Ini prioritas ke-3 brief (atribut stabil);
+   data-testid tidak tersedia di seluruh aplikasi.
 """
-from playwright.sync_api import Page
+from playwright.sync_api import Locator, Page, expect
 
 from .base_page import BasePage
 
-# SELECTOR — ganti setelah inspeksi DOM.
-SEL = {
-    "name": "wizard-company-name",
-    "email": "wizard-email",
-    "phone": "wizard-phone",
-    "industry_type": "wizard-industry-type",
-    "company_type": "wizard-company-type",
-    "language": "wizard-language",
-    "street_address": "wizard-street-address",
-    "country": "wizard-country",
-    "province": "wizard-province",
-    "city": "wizard-city",
-    "district": "wizard-district",
-    "zone": "wizard-zone",
-    "postal_code": "wizard-postal-code",
-    "next_button": "wizard-next",
-    "submit_button": "wizard-submit",
+WIZARD_PATH = "/companies/registration-companies"
+
+# Placeholder dipakai sebagai selector karena field tidak punya name maupun id.
+PLACEHOLDERS = {
+    "name": "Input Company Name",
+    "email": "Input Email",
+    "phone": "Input Phone",
+    "street_address": "Input Address",
 }
 
-# Urutan cascade — dipakai select_cascade() dan get_cascade_values().
-# Didefinisikan sekali supaya urutannya tidak pernah salah di salah satu tempat.
-CASCADE_ORDER = ["country", "province", "city", "district", "zone", "postal_code"]
-
-# Field teks biasa pada Step 1.
-TEXT_FIELDS = ["name", "email", "phone", "street_address"]
-
-# Dropdown non-cascade pada Step 1.
-SIMPLE_SELECTS = ["industry_type", "company_type", "language"]
+# Teks awal tiap combobox — dipakai untuk menemukannya sebelum dipilih.
+# Setelah opsi dipilih, teksnya berganti menjadi nilai terpilih, sehingga
+# locator berbasis teks awal tidak lagi cocok. Karena itu combobox diakses
+# lewat urutan (nth), bukan lewat teks, setelah pemilihan pertama.
+COMBOBOX_LABELS = {
+    "industry_type": "Choose Industry Type",
+    "company_type": "Choose Company Type",
+    "language": "Choose Language",
+    "country": "Choose Country",
+}
 
 
 class RegisterCompanyWizard(BasePage):
     def __init__(self, page: Page):
         super().__init__(page)
-        self.f = {key: page.get_by_test_id(testid) for key, testid in SEL.items()}
 
-    # ---------------- Step 1 ----------------
+        self.f = {
+            key: page.get_by_placeholder(ph) for key, ph in PLACEHOLDERS.items()
+        }
 
-    def fill_basic_fields(self, data: dict) -> None:
-        """Isi field non-cascade. Cascade ditangani terpisah karena butuh menunggu."""
-        for key in TEXT_FIELDS:
-            self.f[key].fill(str(data[key]))
-        for key in SIMPLE_SELECTS:
-            self.f[key].select_option(label=str(data[key]))
+        self.next_button = page.get_by_role("button", name="Next")
+        self.back_button = page.get_by_role("button", name="Back", exact=True)
+        self.back_to_companies = page.get_by_role("button", name="Back to Companies")
+        self.heading = page.get_by_text("Register Company", exact=True)
 
-    def select_cascade(self, country, province, city, district, zone, postal_code) -> None:
+        # --- Step 3: Create Your Branch ---
+        self.fill_from_company_records = page.get_by_role(
+            "button", name="Fill in with the same data from the Company records"
+        )
+        self.register_button = page.get_by_role("button", name="Register", exact=True)
+        # Checkbox persetujuan tidak punya label yang bisa dipakai get_by_label,
+        # jadi diakses lewat role — hanya ada satu checkbox di step ini.
+        self.agree_checkbox = page.get_by_role("checkbox")
+
+    # ------------------------------------------------------------------
+    # Combobox — pola yang dipakai seluruh dropdown di aplikasi ini
+    # ------------------------------------------------------------------
+
+    def _combobox(self, key: str) -> Locator:
         """
-        Pilih cascade berurutan, MENUNGGU tiap child terisi sebelum memilihnya.
+        Combobox berdasarkan teks labelnya.
 
-        Ini alasan utama select_and_wait_child() ada di BasePage: pola
-        'pilih parent lalu tunggu child' harus terjadi di SETIAP level.
-        Melewatkannya di satu level saja sudah cukup membuat suite flaky —
-        Playwright akan mengklik dropdown yang opsinya belum termuat.
+        Dipakai SEBELUM opsi dipilih. Setelah dipilih, teks tombol berganti
+        jadi nilai terpilih, sehingga locator ini tidak lagi cocok — itulah
+        sebabnya ada selected_value() yang membaca lewat urutan.
         """
-        values = [country, province, city, district, zone, postal_code]
+        return self.page.get_by_role("button", name=COMBOBOX_LABELS[key])
 
-        for i in range(len(CASCADE_ORDER) - 1):
-            parent_key = CASCADE_ORDER[i]
-            child_key = CASCADE_ORDER[i + 1]
-            self.select_and_wait_child(
-                parent=self.f[parent_key],
-                value=values[i],
-                child=self.f[child_key],
-            )
-
-        # Level terakhir tidak punya child yang perlu ditunggu.
-        self.f["postal_code"].select_option(label=str(postal_code))
-
-    def get_cascade_values(self) -> dict[str, str]:
+    def select_option(self, key: str, value: str) -> None:
         """
-        Nilai terpilih keenam dropdown cascade.
+        Pilih nilai pada combobox Radix.
 
-        Dipakai TC-WEB-006 untuk membuktikan child TER-RESET saat parent diubah:
-        ambil snapshot sebelum dan sesudah mengubah Province, lalu bandingkan.
-        """
-        return {key: self.value_of(self.f[key]) for key in CASCADE_ORDER}
+        Alurnya tiga langkah, dan ketiganya perlu:
+          1. klik tombol untuk membuka listbox
+          2. TUNGGU listbox benar-benar muncul — opsi dimuat setelah klik,
+             bukan sebelumnya
+          3. klik opsi dengan nama persis
 
-    def change_province(self, new_province: str) -> None:
+        Kenapa bukan select_option() bawaan Playwright: method itu hanya
+        bekerja pada elemen <select> asli. Aplikasi ini memakai Radix UI,
+        di mana dropdown adalah <button> plus listbox yang dirender terpisah.
         """
-        Ubah Province saja, tanpa menyentuh child-nya.
+        trigger = self._combobox(key)
+        trigger.click()
 
-        Dipakai TC-WEB-006. Sengaja TIDAK menunggu child terisi di sini —
-        yang sedang diuji justru apa yang terjadi pada child setelah parent
-        berubah. Menunggu di sini akan menyembunyikan perilaku yang diuji.
+        # Listbox Radix dirender di luar tombolnya (portal), jadi dicari
+        # dari page, bukan dari trigger.
+        listbox = self.page.get_by_role("listbox")
+        expect(listbox).to_be_visible()
+
+        listbox.get_by_role("option", name=value, exact=True).click()
+
+        # Tunggu listbox tertutup sebelum lanjut ke field berikutnya.
+        # Tanpa ini, klik berikutnya bisa mengenai overlay yang masih terbuka.
+        expect(listbox).not_to_be_visible()
+
+    def selected_value(self, index: int) -> str:
         """
-        self.f["province"].select_option(label=new_province)
+        Teks combobox pada urutan tertentu.
+
+        Dipakai setelah pemilihan, saat locator berbasis label sudah tidak
+        cocok lagi. Urutan combobox di Step 1:
+            0 = country code telepon (+62)
+            1 = Industry Type
+            2 = Company Type
+            3 = Language
+            4 = Country
+        """
+        return self.page.get_by_role("combobox").nth(index).inner_text().strip()
+
+    # ------------------------------------------------------------------
+    # Step 1
+    # ------------------------------------------------------------------
+
+    def open(self, base_url: str) -> None:
+        self.goto(f"{base_url.rstrip('/')}{WIZARD_PATH}")
+        expect(self.heading).to_be_visible()
+
+    def fill_text_fields(self, data: dict) -> None:
+        """Isi keempat field teks Step 1."""
+        for key, locator in self.f.items():
+            locator.fill(str(data[key]))
+
+    def fill_dropdowns(self, data: dict) -> None:
+        """
+        Isi keempat combobox Step 1.
+
+        Country dipilih TERAKHIR: pada halaman Manage, mengubah Country
+        me-reset Province dan turunannya. Urutan ini menjaga polanya
+        konsisten meski di Step 1 belum ada dependensi.
+        """
+        self.select_option("industry_type", data["industry_type"])
+        self.select_option("company_type", data["company_type"])
+        self.select_option("language", data["language"])
+        self.select_option("country", data["country"])
+
+    def fill_step_one(self, data: dict) -> None:
+        """Isi seluruh Step 1: field teks lalu dropdown."""
+        self.fill_text_fields(data)
+        self.fill_dropdowns(data)
 
     def is_next_enabled(self) -> bool:
         """
         Status enabled tombol Next.
 
-        Dipakai TC-WEB-006 (Next disabled sampai step valid) dan TC-WEB-007
-        (Next kembali disabled saat field required dikosongkan).
+        Aplikasi men-disable Next selama Step 1 belum valid — sama seperti
+        tombol Log In di Account Center. Dipakai TC-WEB-006 dan TC-WEB-007.
         """
-        return self.f["next_button"].is_enabled()
+        return self.next_button.is_enabled()
 
-    def clear_field(self, field: str) -> None:
-        """Kosongkan satu field. Dipakai TC-WEB-007."""
-        self.f[field].fill("")
+    def clear_field(self, key: str) -> None:
+        """Kosongkan satu field teks. Dipakai TC-WEB-007."""
+        self.f[key].fill("")
 
     def click_next(self) -> None:
-        self.f["next_button"].click()
+        self.next_button.click()
         self.page.wait_for_load_state("networkidle")
 
-    # ---------------- Step 2 & 3 ----------------
-    # TODO(inspeksi): isi setelah tahu field apa saja yang ada di Step 2 dan 3.
-    # Brief hanya merinci Step 1; sisanya harus dilihat langsung di aplikasi.
+    def current_step(self) -> str:
+        """
+        Penunjuk langkah, mis. "1/3".
 
-    def complete_step_two(self, data: dict) -> None:
-        """TODO: isi field Step 2, lalu click_next()."""
+        Dipakai untuk memastikan wizard benar-benar berpindah setelah Next,
+        bukan sekadar menunggu jaringan tenang.
+        """
+        return self.page.get_by_text("/3").first.inner_text().strip()
+
+    # ------------------------------------------------------------------
+    # Step 2 — Register Legal
+    # ------------------------------------------------------------------
+
+    def complete_step_two(self) -> None:
+        """
+        Step 2 hanya berisi Legal Document yang OPSIONAL.
+
+        Diverifikasi lewat inspeksi: nol input, nol combobox. Satu-satunya
+        kontrol adalah "+ Add Document" yang membuka dialog terpisah.
+
+        Karena opsional, step ini dilewati dengan klik Next langsung —
+        tidak ada yang perlu diisi untuk membuat company.
+        """
+        expect(self.page.get_by_text("Register Legal", exact=True)).to_be_visible()
         self.click_next()
 
-    def complete_step_three(self, data: dict) -> None:
-        """TODO: isi field Step 3 sebelum submit()."""
-        pass
+    # ------------------------------------------------------------------
+    # Step 3 — Create Your Branch
+    # ------------------------------------------------------------------
 
-    def submit(self) -> None:
-        self.f["submit_button"].click()
+    def complete_step_three(self, data: dict, use_company_data: bool = True) -> None:
+        """
+        Step 3 membuat branch pertama.
+
+        Form ini mengaku opsional ("If left unfilled, a default branch will
+        be created"), TETAPI Branch Name sudah terisi otomatis dengan
+        "Headquarter" — dan catatan di bawah form menyatakan bahwa mengisi
+        Branch Name membuat seluruh field wajib diisi.
+
+        Jadi dalam praktiknya form ini TIDAK opsional: Street Address dan
+        Country tetap harus diisi.
+
+        Tombol "Fill in with the same data from the Company records"
+        menyalin alamat dan negara dari Step 1. Dipakai secara default
+        karena mengurangi kemungkinan salah ketik dan mencerminkan alur
+        yang paling wajar dipakai pengguna.
+        """
+        expect(self.page.get_by_text("Create Your Branch", exact=True)).to_be_visible()
+
+        if use_company_data:
+            self.fill_from_company_records.click()
+        else:
+            self.page.get_by_placeholder("Input Address").fill(data["street_address"])
+            self.select_option("country", data["country"])
+
+        # Persetujuan syarat & ketentuan wajib dicentang sebelum Register aktif.
+        self.agree_checkbox.check()
+
+        expect(self.register_button).to_be_enabled()
+        self.register_button.click()
         self.page.wait_for_load_state("networkidle")
 
-    def submit_twice(self) -> None:
+    def branch_name(self) -> str:
         """
-        Klik submit dua kali secepat mungkin.
+        Nilai Branch Name yang terisi otomatis (biasanya "Headquarter").
 
-        Dipakai TC-WEB-010. Sengaja TANPA menunggu di antara dua klik —
-        justru itu kondisi yang menghasilkan record duplikat di produksi.
+        Dibaca, bukan diasumsikan — nilai default bisa berubah, dan test
+        yang memverifikasi branch perlu tahu nilai sebenarnya.
         """
-        self.f["submit_button"].click()
-        self.f["submit_button"].click(force=True, timeout=2000)
-        self.page.wait_for_load_state("networkidle")
+        return self.page.get_by_placeholder("Input Branch Name").input_value()
 
-    # ---------------- Validasi ----------------
+    def is_register_enabled(self) -> bool:
+        """Status tombol Register. Dipakai memverifikasi checkbox wajib dicentang."""
+        return self.register_button.is_enabled()
 
-    def field_error_text(self, field: str) -> str:
+    # ------------------------------------------------------------------
+    # Validasi
+    # ------------------------------------------------------------------
+
+    def field_error_text(self, key: str) -> str:
         """
-        Teks error untuk field tertentu.
+        Pesan error untuk satu field.
 
-        Konvensi: elemen error memakai testid `<field-testid>-error`.
-        Sesuaikan bila DOM eSuite memakai pola berbeda.
+        Struktur elemen error belum terverifikasi — form belum pernah
+        disubmit dalam keadaan tidak valid saat inspeksi. Implementasi ini
+        mencari teks error di dekat field, dan mengembalikan string kosong
+        bila tidak ketemu agar test yang memanggilnya tetap punya assert
+        sendiri yang bermakna.
         """
-        return self.text_of(self.page.get_by_test_id(f"{SEL[field]}-error"))
+        field = self.f.get(key)
+        if field is None:
+            return ""
+
+        container = field.locator("xpath=ancestor::div[1]")
+        error = container.locator("text=/required|wajib|invalid|tidak valid/i")
+        return error.first.inner_text().strip() if error.count() > 0 else ""
