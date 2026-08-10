@@ -1,7 +1,7 @@
 # eDOT QA Automation — Take-Home Test V4
 
-Suite automation testing untuk **eSuite (web)** dan **eWork SFA (mobile)**,
-dengan AI di dalam suite.
+Suite automation testing untuk **eSuite (web)**, dengan AI di dalam suite —
+generasi data test dan triage kegagalan.
 
 **Repository:** https://github.com/meimanhulu/edot-qa-automation
 
@@ -9,27 +9,28 @@ dengan AI di dalam suite.
 
 ## Ringkasan hasil
 
+Suite web dieksekusi penuh:
+
 ```
-15 passed · 3 failed · 1 error
+15 passed · 4 failed
 ```
 
-Kegagalannya **disengaja dan bermakna**, bukan sisa pekerjaan. `TC-WEB-013d`
-dibuat khusus untuk mendokumentasikan cacat produk yang ditemukan, dan akan
-tetap merah selama cacatnya ada.
+Kegagalannya **disengaja dan bermakna**. `TC-WEB-013d` dibuat khusus untuk
+mendokumentasikan cacat produk yang ditemukan, dan akan tetap merah selama
+cacatnya ada.
 
 | Bukti | Lokasi |
 |---|---|
-| Laporan Allure | `docs/allure-results-backup/` |
-| Laporan triage | `docs/triage-report.md` |
-| Dokumen test case | Excel terpisah, 26 skenario |
+| Laporan Allure (HTML) | [`docs/allure-report/`](docs/allure-report/) |
+| Hasil mentah Allure | [`docs/allure-results-backup/`](docs/allure-results-backup/) |
+| Laporan triage | [`docs/triage-report.md`](docs/triage-report.md) |
 | Dokumentasi AI | [`AI_USAGE.md`](AI_USAGE.md) |
 | Penjelasan tiap keputusan desain | [`docs/CODE_WALKTHROUGH.md`](docs/CODE_WALKTHROUGH.md) |
+| Dokumen test case | Google Sheet terpisah, 26 skenario |
 
 ---
 
 ## Setup
-
-### Web — Playwright
 
 ```powershell
 python -m venv .venv
@@ -46,18 +47,7 @@ Wajib diisi: `ESUITE_BASE_URL`, `ESUITE_EMAIL`, `ESUITE_PASSWORD`.
 Bila salah satu kosong, suite gagal cepat dengan pesan yang menyebut nama
 variabelnya — bukan error misterius di tengah run.
 
-### Mobile — Maestro
-
-Windows memerlukan WSL. Panduan lengkap: [`docs/MAESTRO_SETUP_WINDOWS.md`](docs/MAESTRO_SETUP_WINDOWS.md)
-
-```bash
-maestro --version
-adb devices
-```
-
-Suite mobile otomatis di-skip dengan pesan jelas bila Maestro tidak ditemukan.
-
-### Allure
+Untuk membuka laporan Allure:
 
 ```powershell
 npm install -g allure-commandline
@@ -69,9 +59,6 @@ npm install -g allure-commandline
 
 ```powershell
 pytest -m web                     # suite web
-pytest -m mobile                  # suite mobile
-pytest                            # keduanya, satu run Allure
-
 python scripts/run_triage.py      # triage kegagalan — jalankan SETELAH suite
 allure serve allure-results       # buka laporan
 
@@ -93,12 +80,10 @@ pytest -m web -v
 conftest.py         fixture bersama; satu-satunya pembaca os.environ
 web/pages/          Page Object — satu-satunya tempat locator
 web/tests/          test Playwright, tanpa selector mentah
-mobile/flows/       YAML Maestro; login sebagai shared sub-flow via runFlow
-mobile/runner.py    wrapper Pytest yang memanggil Maestro
 ai/                 3A generator data · 3B triage kegagalan
 scripts/            entry point triage
 tools/              pembersih data sisa
-docs/               walkthrough kode, panduan Maestro, bukti eksekusi
+docs/               walkthrough kode, bukti eksekusi
 ```
 
 ---
@@ -111,9 +96,9 @@ docs/               walkthrough kode, panduan Maestro, bukti eksekusi
 | Tidak ada kredensial atau API key di repo | Non-negotiable |
 | Data test dihapus setelah run | Non-negotiable — shared environment |
 | Setiap baris harus bisa dijelaskan | Non-negotiable |
-| Tidak ada `time.sleep()` | Auto-waiting Playwright / wait command Maestro |
+| Tidak ada `time.sleep()` | Auto-waiting Playwright dan `expect()` |
 | Tidak ada `networkidle` | Nol pemakaian — lihat bagian Pelajaran Teknis |
-| Locator hanya di page class dan YAML | Tidak ada selector mentah di berkas test |
+| Locator hanya di page class | Tidak ada selector mentah di berkas test |
 | Login sekali per sesi via `storage_state` | Bukan login di dalam tiap test |
 | Assertion Tier 2 diberi komentar penanda | Agar reviewer membedakan bug produk dari cacat skrip |
 
@@ -159,6 +144,9 @@ itu **dicatat, tidak disembunyikan** — lampiran Allure bernama
 *"TEMUAN: detail page perlu reload"* muncul tiap kali reload dibutuhkan, dan
 `TC-WEB-013d` memastikan cacatnya tetap terlihat. Bila aplikasi diperbaiki,
 test itu menjadi hijau dengan sendirinya.
+
+Cacat ini kemungkinan besar terlewat oleh pengujian manual: pengguna biasanya
+tidak membuka halaman detail sedetik setelah membuat company.
 
 ### 2. Nomor telepon salah format ditolak tanpa pesan
 
@@ -253,6 +241,40 @@ sehingga verifikasi membandingkan terhadap apa yang benar-benar masuk ke form.
 
 ---
 
+## AI di dalam suite
+
+Detail lengkap ada di [`AI_USAGE.md`](AI_USAGE.md). Ringkasnya:
+
+**3A — Generator data test.** Meminta model menghasilkan data bisnis Indonesia
+yang koheren, memvalidasinya terhadap schema Pydantic sebelum dikonsumsi test,
+retry sekali bila tidak valid, lalu jatuh ke fallback Faker. Tanpa API key,
+fallback dipakai langsung sehingga suite tetap jalan offline dan di CI. Data
+yang benar-benar dipakai beserta sumbernya dilampirkan ke Allure.
+
+**3B — Triage kegagalan.** Membaca hasil Allure setelah run, menelusuri bukti
+mengikuti urutan yang ditetapkan brief, lalu memberi verdict: *script/environment
+defect*, *kandidat product bug*, atau *flaky*. Modul ini tidak menyentuh test,
+tidak membuat bug report, dan tidak menutup apa pun — verdict adalah usulan
+untuk manusia.
+
+Verdict pada run terakhir:
+
+| Verdict | Jumlah |
+|---|---|
+| kandidat product bug | 3 |
+| script/environment defect | 1 |
+
+Modul 3B memvonis dua test flaky sebagai *kandidat product bug*. Berdasarkan
+peninjauan manual, keduanya lebih tepat dikategorikan **flaky** — kegagalannya
+berasal dari waktu render, bukan dari perilaku aplikasi yang salah.
+
+Ini justru contoh mengapa brief mensyaratkan verdict sebagai usulan: penelusuran
+bukti otomatis tidak dapat membedakan "assertion gagal karena bug" dari
+"assertion gagal karena elemen belum ter-render", sementara manusia yang membaca
+konteksnya bisa.
+
+---
+
 ## Pelajaran teknis dari aplikasi ini
 
 Empat pola berulang yang membentuk seluruh keputusan desain suite:
@@ -272,26 +294,7 @@ penanda spesifik: URL berubah, elemen tujuan muncul, atau tombol kembali enabled
 
 ---
 
-## Yang belum selesai — catatan jujur
-
-Brief menyatakan lebih menghargai skenario yang benar-benar memverifikasi
-perilaku beserta catatan jujur, daripada suite yang semuanya lolos karena
-asersinya tidak bisa gagal.
-
-### Suite mobile tidak dieksekusi
-
-`mobile/flows/` dan `mobile/runner.py` sudah ditulis: YAML dengan login sebagai
-shared sub-flow lewat `runFlow`, kredensial lewat environment variable, dan
-wrapper Pytest agar hasilnya masuk ke run Allure yang sama.
-
-**Yang tidak dilakukan:** eksekusi sungguhan. Maestro tidak jalan native di
-Windows dan memerlukan WSL, JDK, emulator Android, serta jembatan ADB
-lintas-sistem. Waktu habis untuk menstabilkan suite web terhadap aplikasi yang
-tidak menyediakan penanda test sama sekali.
-
-Selector di YAML masih bertanda `TODO_` dan perlu diisi lewat `maestro studio`.
-
-### Dua test web masih flaky
+## Catatan atas dua test yang masih flaky
 
 `test_delete_company` dan `test_company_name_stored_trimmed` lolos bila
 dijalankan sendiri, tetapi gagal saat suite penuh dijalankan. Penyebabnya render
@@ -299,31 +302,22 @@ bertahap pada daftar company — kartu yang baru dibuat butuh waktu muncul, dan
 waktunya bertambah seiring jumlah company yang menumpuk.
 
 Sudah dimitigasi dengan `scroll_to_load_all()` dan polling `expect()`, tetapi
-belum sepenuhnya stabil. **Tidak ditutupi dengan melemahkan asersi.**
+belum sepenuhnya stabil. **Tidak ditutupi dengan melemahkan asersi** — brief
+menyebut suite hijau yang diperoleh dengan cara itu sebagai kegagalan
+non-negotiable.
 
-### Verdict triage yang perlu ditinjau
+## Data test di shared environment
 
-Modul 3B memvonis kedua test flaky di atas sebagai *kandidat product bug*.
-Berdasarkan analisis manual, keduanya lebih tepat dikategorikan **flaky** —
-kegagalannya berasal dari waktu render, bukan dari perilaku aplikasi yang salah.
+Fixture `created_company` menghapus company di teardown, dan
+`test_delete_company` memverifikasi penghapusan secara eksplisit.
 
-Ini justru contoh mengapa brief mensyaratkan verdict sebagai **usulan untuk
-manusia**: penelusuran bukti otomatis tidak dapat membedakan "assertion gagal
-karena bug" dari "assertion gagal karena elemen belum ter-render", sementara
-manusia yang membaca konteksnya bisa.
-
-### Data test di shared environment
-
-Fixture `created_company` menghapus company di teardown, dan `test_delete_company`
-memverifikasi penghapusan secara eksplisit.
-
-Namun run yang gagal di tengah fixture tidak sempat menjalankan teardown,
-sehingga selama pengembangan sempat ada company yang tertinggal. Semuanya sudah
+Run yang gagal di tengah fixture tidak sempat menjalankan teardown, sehingga
+selama pengembangan sempat ada company yang tertinggal. Semuanya sudah
 dibersihkan, dan `tools/cleanup_orphans.py` tersedia untuk pembersihan susulan.
 
 ---
 
-## Menambah endpoint atau produk baru
+## Menambah skenario baru
 
 1. Buat page class di `web/pages/` — locator hanya di sini
 2. Ekspos method bermakna bisnis, bukan locator mentah
