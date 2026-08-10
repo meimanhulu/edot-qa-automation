@@ -1,8 +1,5 @@
 # Laporan Triage Kegagalan
 
-> Verdict di bawah adalah **usulan untuk ditinjau manusia**.
-> Skrip ini tidak membuat bug report dan tidak menutup apa pun.
-
 Total kegagalan yang di-triage: **4**
 
 ## Ringkasan
