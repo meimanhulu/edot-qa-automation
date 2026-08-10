@@ -1,0 +1,19 @@
+{
+  "source": "fallback",
+  "reason": "AI_API_KEY tidak diisi",
+  "data": {
+    "name": "PT Jaya Sejahtera",
+    "email": "admin@ptjayasejahtera.co.id",
+    "phone": "89780116459",
+    "industry_type": "Education",
+    "company_type": "Marketplace",
+    "language": "English",
+    "street_address": "Jl. Gg. Rajawali Barat No. 154",
+    "country": "Indonesia",
+    "province": "GORONTALO",
+    "city": "KOTA GORONTALO",
+    "district": "SIPATANA",
+    "sub_district": "TAPA",
+    "postal_code": ""
+  }
+}

@@ -1,0 +1,5 @@
+province: 'PAPUA BARAT'
+city: 'Choose City'
+district: 'Choose District'
+sub_district: 'Choose Sub District'
+postal_code: 'Choose District'

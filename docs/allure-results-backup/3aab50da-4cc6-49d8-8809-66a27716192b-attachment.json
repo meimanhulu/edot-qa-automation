@@ -1,0 +1,19 @@
+{
+  "source": "fallback",
+  "reason": "AI_API_KEY tidak diisi",
+  "data": {
+    "name": "PT Berkah Jaya",
+    "email": "admin@ptberkahjaya.co.id",
+    "phone": "84745061359",
+    "industry_type": "Transportation and Logistics",
+    "company_type": "Franchisee/Franchisor",
+    "language": "Indonesia",
+    "street_address": "Jl. Jalan Rajiman No. 77",
+    "country": "Indonesia",
+    "province": "GORONTALO",
+    "city": "KOTA GORONTALO",
+    "district": "KOTA TENGAH",
+    "sub_district": "DULALOWO TIMUR",
+    "postal_code": ""
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "source": "fallback",
+  "reason": "AI_API_KEY tidak diisi",
+  "data": {
+    "name": "PT Jaya Berkah",
+    "email": "admin@ptjayaberkah.co.id",
+    "phone": "84984952480",
+    "industry_type": "Construction",
+    "company_type": "Retailer",
+    "language": "Indonesia",
+    "street_address": "Jl. Gg. Jend. Sudirman No. 175",
+    "country": "Indonesia",
+    "province": "GORONTALO",
+    "city": "KOTA GORONTALO",
+    "district": "SIPATANA",
+    "sub_district": "MOLOSIFAT U",
+    "postal_code": ""
+  }
+}

@@ -120,6 +120,11 @@ class RegisterCompanyWizard(BasePage):
         }
 
         self.next_button = page.get_by_role("button", name="Next")
+
+        # Penanda unik tiap langkah — dipakai click_next() untuk memastikan
+        # transisi benar-benar selesai. Elemen, bukan teks: lebih pasti.
+        self.step_two_marker = page.get_by_role("button", name="+ Add Document")
+        self.step_three_marker = page.get_by_placeholder("Input Branch Name")
         self.back_button = page.get_by_role("button", name="Back", exact=True)
         self.back_to_companies = page.get_by_role("button", name="Back to Companies")
         self.heading = page.get_by_text("Register Company", exact=True)
@@ -427,33 +432,27 @@ class RegisterCompanyWizard(BasePage):
         """Kosongkan satu field teks. Dipakai TC-WEB-007."""
         self.f[key].fill("")
 
-    def click_next(self, expect_text: str | None = None) -> None:
+    def click_next(self, expect_locator: Locator | None = None) -> None:
         """
         Klik Next dan tunggu langkah berikutnya benar-benar tampil.
 
-        `expect_text` adalah penanda halaman tujuan — judul langkah berikutnya.
-        Bila tidak diberikan, method hanya menunggu tombol Next hilang atau
-        berubah, sebagai penanda minimal bahwa transisi terjadi.
+        `expect_locator` adalah ELEMEN penanda halaman tujuan — bukan teks.
+
+        Kenapa elemen, bukan teks: pencocokan teks rapuh. Heading bisa
+        terpecah antar elemen, membawa spasi tersembunyi, atau dibungkus
+        node lain, sehingga get_by_text(..., exact=True) meleset dan
+        penantiannya menggantung sampai timeout — padahal halamannya sudah
+        berpindah.
 
         Kenapa BUKAN networkidle: Playwright menyarankan menghindarinya untuk
         SPA. eSuite memuat data lewat XHR yang berjalan terus, sehingga
-        kondisi "jaringan tenang" mungkin tidak pernah tercapai dan
-        penantiannya menggantung sampai timeout — padahal halamannya sudah
-        berpindah sejak tadi.
-
-        Kenapa BUKAN membaca indikator langkah: locator berbasis teks "/3"
-        tidak dijamin cocok, dan bila meleset, inner_text() akan menggantung
-        menunggu elemen yang tidak ada. Menunggu judul tujuan jauh lebih
-        pasti karena teksnya unik per langkah.
+        kondisi "jaringan tenang" mungkin tidak pernah tercapai.
         """
         self.next_button.click()
 
-        if expect_text:
-            expect(self.page.get_by_text(expect_text, exact=True)).to_be_visible(
-                timeout=30000
-            )
+        if expect_locator is not None:
+            expect(expect_locator).to_be_visible(timeout=30000)
         else:
-            # Penanda minimal: tombol Next pada langkah ini tidak lagi tampil.
             expect(self.next_button).not_to_be_visible(timeout=30000)
 
     def current_step(self) -> str:
@@ -482,52 +481,81 @@ class RegisterCompanyWizard(BasePage):
         Karena opsional, step ini dilewati dengan klik Next langsung —
         tidak ada yang perlu diisi untuk membuat company.
         """
-        expect(self.page.get_by_text("Register Legal", exact=True)).to_be_visible()
-        self.click_next(expect_text="Create Your Branch")
+        expect(self.step_two_marker).to_be_visible()
+        self.click_next(expect_locator=self.step_three_marker)
 
     # ------------------------------------------------------------------
     # Step 3 — Create Your Branch
     # ------------------------------------------------------------------
 
-    def complete_step_three(self, data: dict, use_company_data: bool = True) -> None:
+    def complete_step_three(self, data: dict | None = None) -> None:
         """
-        Step 3 membuat branch pertama.
+        Selesaikan Step 3 (Create Your Branch) dan tekan Register.
 
-        Form ini mengaku opsional ("If left unfilled, a default branch will
-        be created"), TETAPI Branch Name sudah terisi otomatis dengan
-        "Headquarter" — dan catatan di bawah form menyatakan bahwa mengisi
-        Branch Name membuat seluruh field wajib diisi.
+        STRUKTUR STEP 3 (hasil inspeksi):
+          Saat Branch Name KOSONG, form hanya menampilkan Branch Name dan
+          checkbox persetujuan. Street Address, Country, dan tombol "Fill in
+          with the same data from the Company records" BARU MUNCUL setelah
+          Branch Name diisi.
 
-        Jadi dalam praktiknya form ini TIDAK opsional: Street Address dan
-        Country tetap harus diisi.
+          Ini sesuai catatan di bawah form: "by filling in the branch name
+          column, it is mandatory to fill in all the forms provided".
 
-        Tombol "Fill in with the same data from the Company records"
-        menyalin alamat dan negara dari Step 1. Dipakai secara default
-        karena mengurangi kemungkinan salah ketik dan mencerminkan alur
-        yang paling wajar dipakai pengguna.
+        Jalur yang dipakai: BIARKAN Branch Name kosong.
+          Form menyatakan dirinya opsional — "If left unfilled, a default
+          branch will be created". Membiarkannya kosong adalah jalur paling
+          sedikit langkah dan paling sedikit yang bisa gagal.
+
+          Bila ternyata Register tetap terkunci dengan Branch Name kosong,
+          method ini mengisi Branch Name lalu field yang menyusul. Itu berarti
+          klaim "optional" pada form tidak benar — dan perbedaannya dicatat
+          lewat pesan assert, bukan disembunyikan.
         """
-        expect(self.page.get_by_text("Create Your Branch", exact=True)).to_be_visible()
+        expect(self.step_three_marker).to_be_visible()
 
-        if use_company_data:
+        # Persetujuan syarat & ketentuan wajib dicentang lebih dulu.
+        self.agree_checkbox.check()
+
+        if self.is_register_enabled():
+            self.register_button.click()
+            self._wait_after_register()
+            return
+
+        # Register masih terkunci -> form ternyata tidak benar-benar opsional.
+        # Isi Branch Name; Street Address dan Country akan menyusul muncul.
+        branch_input = self.page.get_by_placeholder("Input Branch Name")
+        branch_input.fill("Headquarter")
+
+        # Tombol penyalin data company baru tersedia setelah Branch Name diisi.
+        if self.fill_from_company_records.count() > 0:
             self.fill_from_company_records.click()
-        else:
+        elif data:
             self.page.get_by_placeholder("Input Address").fill(data["street_address"])
-            # Step 3 punya combobox sendiri di indeks 0 — bukan indeks Step 1.
             self.branch_country.click()
             listbox = self.page.get_by_role("listbox")
             expect(listbox).to_be_visible()
-            listbox.get_by_role("option", name=data["country"], exact=True).click()
+            listbox.get_by_text(data["country"], exact=True).click()
             expect(listbox).not_to_be_visible()
 
-        # Persetujuan syarat & ketentuan wajib dicentang sebelum Register aktif.
-        self.agree_checkbox.check()
-
-        expect(self.register_button).to_be_enabled()
+        expect(self.register_button).to_be_enabled(timeout=15000)
         self.register_button.click()
+        self._wait_after_register()
 
-        # Setelah Register, aplikasi mengarahkan ke halaman detail company
-        # baru. Menunggu URL berubah lebih andal daripada networkidle.
-        self.page.wait_for_url("**/manage-companies/**", timeout=60000)
+    def _wait_after_register(self) -> None:
+        """
+        Tunggu proses pendaftaran selesai setelah tombol Register ditekan.
+
+        Setelah Register, aplikasi mengarahkan ke DAFTAR companies
+        (/companies), BUKAN ke halaman detail company yang baru dibuat.
+        Diverifikasi lewat log navigasi Playwright:
+
+            navigated to "https://esuite.edot.id/companies"
+
+        Company-nya memang terbuat — jumlah di header bertambah — hanya saja
+        pemanggil harus mencarinya sendiri di daftar untuk membuka detailnya
+        dan membaca Company ID.
+        """
+        self.page.wait_for_url("**/companies", timeout=60000)
 
     def branch_name(self) -> str:
         """

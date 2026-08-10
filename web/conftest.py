@@ -142,20 +142,35 @@ def created_company(page, env, company_data):
     chosen = wizard.fill_step_one(data)
     data.update(chosen)
 
-    wizard.click_next()
+    wizard.click_next(expect_locator=wizard.step_two_marker)
     wizard.complete_step_two()
     wizard.complete_step_three(data)
 
-    # Setelah Register, aplikasi mengarahkan ke halaman detail company baru.
-    detail = CompanyDetailPage(page)
-    detail.wait_loaded()
+    # Setelah Register, aplikasi mengarahkan ke DAFTAR companies — bukan ke
+    # halaman detail.
+    companies = CompaniesPage(page)
+    companies.open(env["base_url"])
+    companies.expect_company_count(company_data.name, 1)
+
+    # Company ID diambil dari KARTU di daftar, bukan dari halaman detail.
+    #
+    # Kartu sudah menampilkan ID di bawah nama, sementara halaman detail
+    # memuat datanya secara asinkron dan kadang tetap kosong. Mengambilnya
+    # dari daftar menghilangkan satu titik gagal dari fixture — fixture
+    # seharusnya menyiapkan data, bukan menguji halaman detail.
+    ids = companies.company_ids_named(company_data.name)
+
+    # mongo_id hanya ada di URL halaman detail, jadi Manage tetap dibuka —
+    # tetapi TANPA menunggu datanya termuat.
+    companies.open_manage(company_data.name)
+    mongo_id = CompanyDetailPage(page).mongo_id_from_url()
 
     info = {
         "input": company_data,
         "submitted": data,          # data teks + nilai dropdown yang terpilih
         "name": company_data.name,
-        "company_id": detail.company_id(),
-        "mongo_id": detail.mongo_id_from_url(),
+        "company_id": ids[0] if ids else "",
+        "mongo_id": mongo_id,
     }
 
     allure.attach(
@@ -170,12 +185,11 @@ def created_company(page, env, company_data):
     # ---- teardown: selalu jalan, apa pun hasil test ----
     try:
         page.goto(
-            f"{env['base_url'].rstrip('/')}/companies/manage-companies/{info['mongo_id']}/profile",
-            wait_until="networkidle",
+            f"{env['base_url'].rstrip('/')}/companies/manage-companies/{info['mongo_id']}/profile"
         )
+        CompanyDetailPage(page).wait_loaded()
         CompanyDetailPage(page).delete()
 
-        companies = CompaniesPage(page)
         companies.open(env["base_url"])
         remaining = companies.count_companies_named(info["name"])
         if remaining != 0:

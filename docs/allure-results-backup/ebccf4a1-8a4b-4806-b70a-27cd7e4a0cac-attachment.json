@@ -1,0 +1,19 @@
+{
+  "source": "fallback",
+  "reason": "AI_API_KEY tidak diisi",
+  "data": {
+    "name": "CV Rejeki Nusantara",
+    "email": "admin@cvrejekinusantara.co.id",
+    "phone": "89802801779",
+    "industry_type": "Healthcare",
+    "company_type": "Service",
+    "language": "Indonesia",
+    "street_address": "Jl. Gg. Jamika No. 154",
+    "country": "Indonesia",
+    "province": "GORONTALO",
+    "city": "KOTA GORONTALO",
+    "district": "SIPATANA",
+    "sub_district": "TAPA",
+    "postal_code": ""
+  }
+}

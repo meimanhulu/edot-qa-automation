@@ -1,0 +1,19 @@
+{
+  "source": "fallback",
+  "reason": "AI_API_KEY tidak diisi",
+  "data": {
+    "name": "CV Sejahtera Jaya",
+    "email": "admin@cvsejahterajaya.co.id",
+    "phone": "83168830847",
+    "industry_type": "Transportation and Logistics",
+    "company_type": "Service Aggregator",
+    "language": "English",
+    "street_address": "Jl. Jl. Jend. Sudirman No. 106",
+    "country": "Indonesia",
+    "province": "GORONTALO",
+    "city": "KOTA GORONTALO",
+    "district": "SIPATANA",
+    "sub_district": "TAPA",
+    "postal_code": ""
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "source": "fallback",
+  "reason": "AI_API_KEY tidak diisi",
+  "data": {
+    "name": "CV Sinar Jaya",
+    "email": "admin@cvsinarjaya.co.id",
+    "phone": "86634047673",
+    "industry_type": "Food & Beverage",
+    "company_type": "Manufacturer",
+    "language": "Indonesia",
+    "street_address": "Jl. Gg. Raya Setiabudhi No. 86",
+    "country": "Indonesia",
+    "province": "GORONTALO",
+    "city": "KOTA GORONTALO",
+    "district": "SIPATANA",
+    "sub_district": "TAPA",
+    "postal_code": ""
+  }
+}

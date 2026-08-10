@@ -1,0 +1,16 @@
+name: 'PT Sejahtera Mandiri'
+email: 'admin@ptsejahteramandiri.co.id'
+phone: '82547361495'
+industry_type: 'Retail'
+company_type: 'Importer/Exporter'
+language: 'Indonesia'
+street_address: 'Jl. Jalan BKR No. 120'
+country: 'Indonesia'
+province: 'PAPUA'
+city: 'KOTA JAYAPURA'
+district: 'HERAM'
+sub_district: 'WAENA'
+postal_code: '99332'
+
+company_id: 5118493
+mongo_id: 6a7950ee9af31898cc60d171

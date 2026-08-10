@@ -39,6 +39,19 @@ def test_company_detail_matches_input(page, created_company):
     detail.wait_loaded()
     actual = detail.get_all_fields()
 
+    if detail.needed_reload:
+        allure.attach(
+            "Halaman detail TIDAK memuat data pada pembukaan pertama.\n"
+            "Data baru muncul setelah halaman dimuat ulang.\n\n"
+            "Ini perilaku yang layak dilaporkan: pengguna yang membuka detail "
+            "company yang baru dibuat akan melihat form kosong, dan tidak ada "
+            "petunjuk bahwa ia harus memuat ulang.\n\n"
+            "Suite melakukan reload otomatis agar verifikasi Tier 2 tetap bisa "
+            "berjalan — bukan untuk menyembunyikan cacat ini.",
+            name="TEMUAN: detail page perlu reload",
+            attachment_type=allure.attachment_type.TEXT,
+        )
+
     allure.attach(
         "\n".join(f"{k}: {v!r}" for k, v in actual.items()),
         name="nilai yang tampil di halaman detail",
@@ -126,4 +139,33 @@ def test_cascade_fields_are_readonly(page, created_company):
         f"Field berikut ternyata dapat diubah: {editable}. "
         "Bila cascade sudah dibuka, TC-WEB-006 (parent reset) kini dapat diuji "
         "dan perlu ditambahkan ke suite."
+    )
+
+
+@pytest.mark.web
+@pytest.mark.tier1
+@allure.title("TC-WEB-013d Detail page loads data on first open")
+def test_detail_page_loads_without_reload(page, created_company):
+    """
+    Halaman detail seharusnya menampilkan data pada pembukaan PERTAMA.
+
+    Temuan: untuk company yang baru dibuat, form tampil kosong seluruhnya —
+    Company Name kosong, Company ID kosong, dropdown masih "Choose ...".
+    Data baru muncul setelah halaman dimuat ulang secara manual.
+
+    Test ini SENGAJA DIBUAT UNTUK GAGAL selama perilaku itu masih ada. Ia
+    memisahkan cacat tersebut dari skenario lain, supaya TC-WEB-013 tetap
+    dapat memverifikasi kecocokan data tanpa terhalang, sementara cacatnya
+    tetap terlihat dan tidak hilang di balik reload otomatis.
+
+    Bila kelak aplikasi diperbaiki, test ini menjadi hijau dengan sendirinya.
+    """
+    detail = CompanyDetailPage(page)
+    detail.wait_loaded()
+
+    assert not detail.needed_reload, (
+        "Halaman detail tidak memuat data pada pembukaan pertama; data baru "
+        "muncul setelah reload. Pengguna yang membuka company yang baru dibuat "
+        "akan melihat form kosong tanpa petunjuk apa pun bahwa ia perlu "
+        "memuat ulang halaman."
     )

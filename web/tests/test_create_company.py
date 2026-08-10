@@ -27,10 +27,7 @@ def test_create_company(page, env, created_company):
 
     # Tier 2: record benar-benar ADA di daftar, bukan sekadar toast sukses.
     # Jumlahnya tepat 1 — sekaligus membuktikan tidak ada duplikat.
-    count = companies.count_companies_named(created_company["name"])
-    assert count == 1, (
-        f"Diharapkan tepat 1 company bernama {created_company['name']!r}, dapat {count}"
-    )
+    companies.expect_company_count(created_company["name"], 1)
 
     # Tier 2: company baru harus berstatus Active (trial 30 hari).
     # Ini juga prasyarat skenario mobile — company Expired tidak bisa dipakai login.
@@ -111,16 +108,15 @@ def test_validation_reacts_to_field_removal(page, env, company_data):
 
 @pytest.mark.web
 @pytest.mark.tier1
-@allure.title("TC-WEB-011 Branch step requires agreement before Register")
+@allure.title("TC-WEB-011 Register requires agreement checkbox")
 def test_register_requires_agreement(page, env, company_data):
     """
-    Step 3 mengaku opsional ("If left unfilled, a default branch will be
-    created"), tetapi Branch Name sudah terisi otomatis dengan "Headquarter"
-    dan catatan di bawah form menyatakan mengisi Branch Name membuat seluruh
-    field wajib.
+    Step 3 menyatakan dirinya opsional ("If left unfilled, a default branch
+    will be created"), tetapi Branch Name diberi tanda wajib (*) — sebuah
+    kontradiksi di UI.
 
-    Test ini memverifikasi kontradiksi tersebut: apakah Register benar-benar
-    terkunci sebelum checkbox persetujuan dicentang.
+    Test ini memverifikasi satu hal yang pasti: Register terkunci sebelum
+    checkbox persetujuan dicentang.
 
     Sengaja BERHENTI sebelum menekan Register — test ini tidak membuat data.
     """
@@ -129,26 +125,28 @@ def test_register_requires_agreement(page, env, company_data):
 
     data = company_data.model_dump()
     wizard.fill_step_one(data)
-    wizard.click_next(expect_text="Register Legal")
+    wizard.click_next(expect_locator=wizard.step_two_marker)
     wizard.complete_step_two()
 
-    # Sampai di Step 3. Isi datanya tanpa mencentang persetujuan.
-    wizard.fill_from_company_records.click()
+    wizard.step_three_marker.wait_for(state="visible")
 
-    default_branch = wizard.branch_name()
     allure.attach(
-        f"Branch Name terisi otomatis: {default_branch!r}",
-        name="nilai default branch",
+        f"Branch Name (kosong sebelum diisi): {wizard.branch_name()!r}\n"
+        f"Register enabled sebelum checkbox: {wizard.is_register_enabled()}",
+        name="keadaan awal Step 3",
         attachment_type=allure.attachment_type.TEXT,
     )
 
+    # Negative: Register harus terkunci sebelum persetujuan dicentang.
     assert not wizard.is_register_enabled(), (
         "Tombol Register enabled padahal checkbox persetujuan belum dicentang"
     )
 
     wizard.agree_checkbox.check()
+
     assert wizard.is_register_enabled(), (
-        "Tombol Register tetap disabled setelah persetujuan dicentang"
+        "Tombol Register tetap disabled setelah persetujuan dicentang, "
+        "padahal form menyatakan Branch Name opsional"
     )
 
 
@@ -171,7 +169,7 @@ def test_company_name_stored_trimmed(page, env, company_data):
     wizard = RegisterCompanyWizard(page)
     wizard.open(env["base_url"])
     wizard.fill_step_one(data)
-    wizard.click_next(expect_text="Register Legal")
+    wizard.click_next(expect_locator=wizard.step_two_marker)
     wizard.complete_step_two()
     wizard.complete_step_three(data)
 
@@ -195,10 +193,11 @@ def test_company_name_stored_trimmed(page, env, company_data):
         )
     finally:
         page.goto(
-            f"{env['base_url'].rstrip('/')}/companies/manage-companies/{mongo_id}/profile",
-            wait_until="networkidle",
+            f"{env['base_url'].rstrip('/')}/companies/manage-companies/{mongo_id}/profile"
         )
-        CompanyDetailPage(page).delete()
+        detail = CompanyDetailPage(page)
+        detail.wait_loaded()
+        detail.delete()
 
 
 @pytest.mark.web

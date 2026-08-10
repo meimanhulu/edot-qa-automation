@@ -53,6 +53,11 @@ class CompaniesPage(BasePage):
         # Judul halaman — dipakai sebagai penanda halaman sudah termuat.
         self.page_heading = page.get_by_text("My Company", exact=True)
 
+        # Penghitung kartu. Kartu tidak punya atribut penanda sendiri, tetapi
+        # SETIAP kartu memiliki tepat satu tombol "Manage" — jadi jumlah
+        # tombol Manage sama dengan jumlah kartu yang sudah ter-render.
+        self.manage_buttons = page.get_by_role("button", name="Manage", exact=True)
+
     # ------------------------------------------------------------------
     # Navigasi
     # ------------------------------------------------------------------
@@ -74,6 +79,35 @@ class CompaniesPage(BasePage):
     # ------------------------------------------------------------------
     # Pembacaan kartu
     # ------------------------------------------------------------------
+
+    def scroll_to_load_all(self, max_rounds: int = 30) -> int:
+        """
+        Gulir sampai bawah berulang kali hingga jumlah kartu berhenti bertambah.
+
+        Halaman ini merender kartu SECARA BERTAHAP saat digulir, bukan
+        sekaligus. Company yang baru dibuat muncul di URUTAN PALING BAWAH,
+        sehingga kartunya belum ada di DOM sampai halaman digulir ke sana.
+
+        Akibatnya pencarian berbasis teks gagal menemukan company yang jelas
+        ada di aplikasi — kegagalannya berbunyi "waiting for get_by_text(...)"
+        dan terbaca seperti company tidak terbuat.
+
+        Mengembalikan jumlah kartu yang akhirnya termuat.
+        """
+        previous = -1
+        for _ in range(max_rounds):
+            current = self.manage_buttons.count()
+            if current == previous:
+                break
+            previous = current
+
+            self.page.mouse.wheel(0, 20000)
+            # Beri kesempatan render berikutnya masuk. Memakai wait_for_timeout,
+            # bukan sleep: ini bagian dari API Playwright dan tetap menghormati
+            # pembatalan test, bukan memblokir thread.
+            self.page.wait_for_timeout(300)
+
+        return self.manage_buttons.count()
 
     def card_for(self, exact_name: str) -> Locator:
         """
@@ -106,6 +140,32 @@ class CompaniesPage(BasePage):
         """
         return self.page.get_by_text(exact_name, exact=True).count()
 
+    def expect_company_count(self, exact_name: str, count: int, timeout: int = 30000) -> None:
+        """
+        Tunggu sampai jumlah company dengan nama PERSIS mencapai `count`.
+
+        Memakai expect() yang melakukan polling, bukan count() yang menghitung
+        seketika.
+
+        Kenapa perlu: halaman ini merender SELURUH company sekaligus — 572
+        kartu tanpa pagination. Menghitung tepat setelah halaman dibuka bisa
+        mendapat angka 0 padahal record-nya ada, karena kartunya belum selesai
+        di-render. Kegagalan seperti itu terbaca seperti "company tidak
+        terbuat", padahal masalahnya waktu.
+
+        Dipakai untuk:
+          count=1  -> record ada dan tidak duplikat
+          count=0  -> record benar-benar terhapus
+        """
+        # Gulir sampai seluruh kartu termuat sebelum menghitung — company baru
+        # berada di paling bawah dan kartunya dirender bertahap.
+        if count > 0:
+            self.scroll_to_load_all()
+
+        expect(self.page.get_by_text(exact_name, exact=True)).to_have_count(
+            count, timeout=timeout
+        )
+
     def company_ids_named(self, exact_name: str) -> list[str]:
         """
         Company ID milik semua kartu dengan nama tersebut.
@@ -114,6 +174,8 @@ class CompaniesPage(BasePage):
         "gygy" dengan ID berbeda). ID inilah pembeda sebenarnya, dan ID
         company yang dibuat suite dipakai untuk skenario mobile.
         """
+        self.scroll_to_load_all()
+
         ids = []
         cards = self.card_for(exact_name)
         for i in range(cards.count()):
@@ -136,13 +198,22 @@ class CompaniesPage(BasePage):
         """
         Klik Manage pada kartu company tertentu.
 
+        Menggulir lebih dulu supaya kartunya benar-benar ter-render — kartu
+        company baru berada di bawah dan tidak ada di DOM sebelum digulir.
+
         Tombol dicari DI DALAM kartu, bukan dari page. Ada ratusan tombol
         bertuliskan "Manage" di halaman ini; memanggilnya dari page akan
         memicu strict mode violation.
         """
+        self.scroll_to_load_all()
+
         card = self.card_for(exact_name).first
+        card.scroll_into_view_if_needed()
         card.get_by_role("button", name="Manage").click()
-        self.page.wait_for_load_state("networkidle")
+
+        # Tunggu halaman detail benar-benar terbuka, bukan sekadar jaringan
+        # tenang — URL detail memuat segmen /manage-companies/.
+        self.page.wait_for_url("**/manage-companies/**", timeout=30000)
 
     def go_to_company(self, exact_name: str) -> None:
         """
@@ -152,7 +223,6 @@ class CompaniesPage(BasePage):
         """
         card = self.card_for(exact_name).first
         card.get_by_role("button", name="Go To").click()
-        self.page.wait_for_load_state("networkidle")
 
     def status_of(self, exact_name: str) -> str:
         """

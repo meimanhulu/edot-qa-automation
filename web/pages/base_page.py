@@ -21,13 +21,18 @@ class BasePage:
 
     def goto(self, url: str) -> None:
         """
-        Buka URL dan tunggu jaringan tenang.
+        Buka URL dan tunggu dokumen selesai dimuat.
 
-        'networkidle' dipilih, bukan 'load', karena eSuite memuat data lewat
-        XHR setelah dokumen selesai. Menunggu 'load' saja membuat assert
-        berikutnya berjalan sebelum data tampil.
+        Memakai 'load', BUKAN 'networkidle'. Playwright sendiri menyarankan
+        menghindari networkidle untuk aplikasi SPA: eSuite memuat data lewat
+        XHR yang berjalan terus, sehingga kondisi "jaringan tenang" mungkin
+        tidak pernah tercapai dan penantiannya menggantung sampai timeout.
+
+        Kesiapan data ditunggu oleh page object masing-masing lewat elemen
+        penanda yang spesifik — itu lebih tepat daripada menebak lewat
+        aktivitas jaringan.
         """
-        self.page.goto(url, wait_until="networkidle")
+        self.page.goto(url, wait_until="load")
 
     # ------------------------------------------------------------------
     # Menunggu — tanpa sleep

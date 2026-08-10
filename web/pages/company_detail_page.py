@@ -44,6 +44,8 @@ TEMUAN YANG MEMBENTUK IMPLEMENTASI INI:
    yang tampil di form adalah 5102559. Keduanya dibutuhkan: mongo id untuk
    navigasi langsung, company id untuk skenario mobile.
 """
+import re
+
 from playwright.sync_api import Locator, Page, expect
 
 from .base_page import BasePage
@@ -84,6 +86,10 @@ class CompanyDetailPage(BasePage):
     def __init__(self, page: Page):
         super().__init__(page)
 
+        # True bila halaman perlu dimuat ulang sebelum datanya muncul.
+        # Lihat wait_loaded() — ini penanda cacat produk, bukan detail teknis.
+        self.needed_reload = False
+
         self.save_button = page.get_by_role("button", name="Save Changes")
         self.delete_button = page.get_by_role("button", name="Delete", exact=True)
         self.back_button = page.get_by_role("button", name="Back to Company List")
@@ -93,16 +99,30 @@ class CompanyDetailPage(BasePage):
     # Akses elemen
     # ------------------------------------------------------------------
 
+    # Locator gabungan input + combobox. INDEKS PADA INPUT_INDEX DAN
+    # COMBOBOX_INDEX MENGACU KE DAFTAR GABUNGAN INI, bukan ke masing-masing
+    # jenis elemen secara terpisah.
+    #
+    # Inspeksi DOM dilakukan dengan querySelectorAll('input, button[role=combobox]'),
+    # sehingga Postal Code tercatat di indeks 11. Bila dihitung dari <input>
+    # saja, jumlahnya hanya 7 dan indeks 11 tidak pernah ada — kegagalannya
+    # berupa timeout "waiting for input.nth(11)" yang menyesatkan.
+    ALL_FIELDS_SELECTOR = "input, button[role=combobox]"
+
     def _input(self, key: str) -> Locator:
         """
-        Input berdasarkan urutannya di form.
+        Input berdasarkan urutannya di daftar GABUNGAN input + combobox.
 
         Kenapa lewat urutan, bukan placeholder: sebagian input punya
-        placeholder yang sama-sama generik, dan Company ID justru tidak
-        punya nilai pembeda selain posisinya. Urutan diverifikasi lewat
-        inspeksi dan dicatat di INPUT_INDEX.
+        placeholder generik, dan Company ID tidak punya pembeda selain
+        posisinya. Urutan diverifikasi lewat inspeksi dan dicatat di
+        INPUT_INDEX.
+
+        Kenapa memakai selector gabungan: indeks pada INPUT_INDEX berasal
+        dari inspeksi yang mencampur input dan combobox. Memakai locator
+        "input" saja membuat indeksnya bergeser.
         """
-        return self.page.locator("input").nth(INPUT_INDEX[key])
+        return self.page.locator(self.ALL_FIELDS_SELECTOR).nth(INPUT_INDEX[key])
 
     def _combobox(self, key: str) -> Locator:
         """
@@ -111,13 +131,78 @@ class CompanyDetailPage(BasePage):
         Indeks pada COMBOBOX_INDEX mengikuti urutan gabungan hasil inspeksi,
         sehingga locator-nya menyaring elemen gabungan, bukan combobox saja.
         """
-        return self.page.locator("input, button[role=combobox]").nth(COMBOBOX_INDEX[key])
+        return self.page.locator(self.ALL_FIELDS_SELECTOR).nth(COMBOBOX_INDEX[key])
 
     def is_loaded(self) -> bool:
+        """Apakah halaman detail sedang tampil (belum tentu datanya sudah masuk)."""
         return self.heading.is_visible()
 
-    def wait_loaded(self) -> None:
-        expect(self.heading).to_be_visible()
+    def wait_loaded(self, timeout: int = 30000) -> None:
+        """
+        Tunggu halaman detail tampil DAN datanya benar-benar termuat.
+
+        Menunggu Company ID terisi angka, bukan sekadar judul "Company Details"
+        muncul.
+
+        Kenapa: halaman ini memuat data secara asinkron. Judul tampil lebih
+        dulu sementara seluruh field masih kosong — Company Name kosong,
+        dropdown masih "Choose ...". Membaca field pada saat itu menghasilkan
+        nilai kosong, dan verifikasi Tier 2 gagal karena alasan yang salah:
+        bukan karena aplikasi menyimpan nilai keliru, melainkan karena kita
+        membaca terlalu cepat.
+
+        Company ID dipakai sebagai penanda karena ia dihasilkan sistem dan
+        selalu terisi angka begitu data masuk.
+        """
+        expect(self.heading).to_be_visible(timeout=timeout)
+
+        # Dicatat supaya pemanggil tahu apakah reload dibutuhkan. Reload yang
+        # senyap akan menyembunyikan cacat produk di balik test yang hijau.
+        self.needed_reload = False
+
+        company_id = self._input("company_id")
+
+        # Coba sekali; bila data tidak masuk, MUAT ULANG halaman lalu coba lagi.
+        #
+        # Halaman ini kadang terbuka dengan seluruh field kosong meski URL-nya
+        # benar (mengandung ?cid=). Reload menyelesaikannya. Pengulangan
+        # dibatasi sekali supaya kegagalan sungguhan tetap muncul cepat,
+        # bukan tersamar oleh percobaan berulang.
+        try:
+            expect(company_id).to_have_value(re.compile(r"^\d+$"), timeout=timeout // 3)
+            return
+        except AssertionError:
+            pass
+
+        # Pembukaan pertama tidak memuat data — ini perilaku yang layak
+        # dilaporkan, bukan sekadar diakali. Ditandai agar test bisa
+        # melampirkannya ke Allure.
+        self.needed_reload = True
+
+        self.page.reload(wait_until="load")
+        expect(self.heading).to_be_visible(timeout=timeout)
+
+        try:
+            expect(self._input("company_id")).to_have_value(
+                re.compile(r"^\d+$"), timeout=timeout // 3
+            )
+        except AssertionError:
+            # Gagal CEPAT dengan diagnosis, bukan timeout di locator berikutnya.
+            #
+            # Tanpa ini, kegagalan muncul sebagai "waiting for input.nth(11)"
+            # saat membaca field — pesan yang menunjuk cacat locator, padahal
+            # penyebabnya halaman tidak memuat data sama sekali. Triage akan
+            # salah memvonisnya.
+            raise AssertionError(
+                f"Halaman detail tidak memuat data setelah dibuka DAN dimuat ulang.\n"
+                f"  URL           : {self.page.url}\n"
+                f"  jumlah field  : {self.page.locator(self.ALL_FIELDS_SELECTOR).count()} "
+                f"(diharapkan minimal {max(list(INPUT_INDEX.values()) + list(COMBOBOX_INDEX.values())) + 1})\n"
+                f"  Company ID    : {company_id.input_value()!r} (diharapkan angka)\n\n"
+                "Verifikasi manual: buka company ini di browser lewat Companies > Manage. "
+                "Bila field-nya juga kosong secara manual, ini BUG PRODUK — halaman "
+                "detail tidak memuat data untuk company yang baru dibuat."
+            ) from None
 
     # ------------------------------------------------------------------
     # Pembacaan — untuk TC-WEB-013 (Tier 2)
@@ -134,6 +219,11 @@ class CompanyDetailPage(BasePage):
 
         Page object melaporkan KEADAAN; test yang memutuskan lulus/gagal.
         """
+        # Pastikan data benar-benar termuat sebelum dibaca. Tanpa ini,
+        # pembacaan pada halaman kosong menghasilkan timeout di indeks
+        # tertinggi — pesan yang menyesatkan.
+        self.wait_loaded()
+
         values = {}
         for key in INPUT_INDEX:
             values[key] = self._input(key).input_value()
@@ -207,7 +297,10 @@ class CompanyDetailPage(BasePage):
         menampilkan nilai lama.
         """
         self.save_button.click()
-        self.page.wait_for_load_state("networkidle")
+
+        # Tunggu tombol Save kembali stabil setelah request selesai, bukan
+        # menunggu jaringan tenang — eSuite punya XHR yang berjalan terus.
+        expect(self.save_button).to_be_enabled(timeout=30000)
 
     # ------------------------------------------------------------------
     # Penghapusan — untuk TC-WEB-015 (Tier 2)
@@ -215,20 +308,36 @@ class CompanyDetailPage(BasePage):
 
     def delete(self) -> None:
         """
-        Hapus company.
+        Hapus company lewat dialog konfirmasi.
 
-        Dialog konfirmasi belum terverifikasi saat inspeksi. Implementasi ini
-        mengklik Delete lalu mencari tombol konfirmasi bila muncul; bila tidak
-        ada, penghapusan dianggap langsung. Test tetap membuktikan hasilnya
-        lewat pengecekan record, bukan lewat asumsi soal dialog.
+        STRUKTUR DIALOG (hasil inspeksi):
+
+            Confirmation Delete                              [X]
+            Are you agree to delete the company?
+            Deleting the company data will affect to other related data...
+            [ ] I understand & agree to delete
+                                      [Cancel]  [Confirm]
+
+        Dua hal yang berbeda dari dugaan awal:
+          1. tombol konfirmasinya bernama "Confirm", BUKAN "Delete"
+          2. ada CHECKBOX persetujuan yang wajib dicentang lebih dulu —
+             Confirm tetap terkunci sebelum itu
+
+        Pola yang sama dengan Step 3 wizard: aksi berisiko dikunci di balik
+        checkbox persetujuan.
         """
         self.delete_button.click()
 
-        confirm = self.page.get_by_role("button", name="Delete", exact=True).last
-        try:
-            confirm.click(timeout=5000)
-        except Exception:
-            # Tidak ada dialog konfirmasi — klik pertama sudah cukup.
-            pass
+        # Dialog dirender di portal, jadi dicari dari page.
+        dialog = self.page.get_by_role("dialog")
+        expect(dialog).to_be_visible()
 
-        self.page.wait_for_load_state("networkidle")
+        # Checkbox persetujuan wajib dicentang sebelum Confirm terbuka.
+        dialog.get_by_role("checkbox").check()
+
+        confirm = dialog.get_by_role("button", name="Confirm")
+        expect(confirm).to_be_enabled()
+        confirm.click()
+
+        # Setelah dihapus, aplikasi mengarahkan kembali ke daftar companies.
+        self.page.wait_for_url("**/companies", timeout=30000)
