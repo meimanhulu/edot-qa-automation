@@ -23,3 +23,14 @@ maestro-output/
 .vscode/
 .idea/
 .DS_Store
+
+hasil.txt
+
+# Pengecualian: laporan Allure di docs/ adalah BUKTI EKSEKUSI yang
+# diminta brief, bukan output run harian.
+!docs/allure-report/
+!docs/allure-report/**
+!docs/allure-results-backup/
+!docs/allure-results-backup/**
+
+triage-report.md

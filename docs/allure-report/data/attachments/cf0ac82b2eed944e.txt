@@ -1,0 +1,16 @@
+name: 'PT Berkah Rejeki'
+email: 'admin@ptberkahrejeki.co.id'
+phone: '81492579784'
+industry_type: 'Retail'
+company_type: 'Importer/Exporter'
+language: 'Indonesia'
+street_address: 'Jl. Jalan Suniaraja No. 200'
+country: 'Indonesia'
+province: 'PAPUA'
+city: 'KOTA JAYAPURA'
+district: 'HERAM'
+sub_district: 'WAENA'
+postal_code: '99332'
+
+company_id: 5118489
+mongo_id: 6a7950a69af31898cc60cdd1

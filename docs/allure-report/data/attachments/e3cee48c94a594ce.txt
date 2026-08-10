@@ -1,0 +1,5 @@
+province: 'PAPUA'
+city: 'KOTA JAYAPURA'
+district: 'HERAM'
+sub_district: 'WAENA'
+postal_code: '99332'

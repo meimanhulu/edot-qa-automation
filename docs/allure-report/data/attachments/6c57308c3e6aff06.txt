@@ -1,0 +1,16 @@
+name: 'PT Jaya Berkah'
+email: 'admin@ptjayaberkah.co.id'
+phone: '84984952480'
+industry_type: 'Retail'
+company_type: 'Importer/Exporter'
+language: 'Indonesia'
+street_address: 'Jl. Gg. Jend. Sudirman No. 175'
+country: 'Indonesia'
+province: 'PAPUA'
+city: 'KOTA JAYAPURA'
+district: 'HERAM'
+sub_district: 'WAENA'
+postal_code: '99332'
+
+company_id: 5118491
+mongo_id: 6a7950ca9af31898cc60cfa1

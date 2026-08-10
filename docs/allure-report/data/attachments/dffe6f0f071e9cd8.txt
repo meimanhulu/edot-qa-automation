@@ -1,0 +1,7 @@
+company_id: editable=False
+country: editable=False
+province: editable=False
+city: editable=False
+district: editable=False
+zone: editable=False
+postal_code: editable=False

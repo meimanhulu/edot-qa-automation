@@ -1,0 +1,19 @@
+{
+  "source": "fallback",
+  "reason": "AI_API_KEY tidak diisi",
+  "data": {
+    "name": "PT Sejahtera Mandiri",
+    "email": "admin@ptsejahteramandiri.co.id",
+    "phone": "82547361495",
+    "industry_type": "Finance and Banking",
+    "company_type": "Service",
+    "language": "Indonesia",
+    "street_address": "Jl. Jalan BKR No. 120",
+    "country": "Indonesia",
+    "province": "GORONTALO",
+    "city": "KOTA GORONTALO",
+    "district": "SIPATANA",
+    "sub_district": "MOLOSIFAT U",
+    "postal_code": ""
+  }
+}

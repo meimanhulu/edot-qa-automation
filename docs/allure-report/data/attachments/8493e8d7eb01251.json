@@ -1,0 +1,19 @@
+{
+  "source": "fallback",
+  "reason": "AI_API_KEY tidak diisi",
+  "data": {
+    "name": "PT Jaya Sinar",
+    "email": "admin@ptjayasinar.co.id",
+    "phone": "88001080779",
+    "industry_type": "Telecommunications",
+    "company_type": "Dropshipper",
+    "language": "Indonesia",
+    "street_address": "Jl. Gg. Monginsidi No. 105",
+    "country": "Indonesia",
+    "province": "GORONTALO",
+    "city": "KOTA GORONTALO",
+    "district": "SIPATANA",
+    "sub_district": "MOLOSIFAT U",
+    "postal_code": ""
+  }
+}
