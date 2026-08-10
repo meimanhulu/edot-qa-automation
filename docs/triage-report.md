@@ -15,7 +15,7 @@ Total kegagalan yang di-triage: **4**
 
 **Verdict:** kandidat product bug  
 **Berhenti di langkah:** `reproducibility`  
-**Tingkat keyakinan:** perlu konfirmasi manusia
+**Tingkat keyakinan:** Need Confirm
 
 ### Penelusuran bukti
 
@@ -45,7 +45,7 @@ Call log:
 
 **Verdict:** kandidat product bug  
 **Berhenti di langkah:** `reproducibility`  
-**Tingkat keyakinan:** perlu konfirmasi manusia
+**Tingkat keyakinan:** Need Confirm
 
 ### Penelusuran bukti
 
@@ -89,7 +89,7 @@ Aria snapshot:
 
 **Verdict:** kandidat product bug  
 **Berhenti di langkah:** `reproducibility`  
-**Tingkat keyakinan:** perlu konfirmasi manusia
+**Tingkat keyakinan:** Need Confirm
 
 ### Penelusuran bukti
 
