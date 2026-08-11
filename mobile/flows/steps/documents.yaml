@@ -1,0 +1,92 @@
+# =============================================================================
+# SUB-FLOW: step 3 - Documents
+#
+# Dipanggil create_customer.yaml setelah step Locations selesai.
+#
+# STRUKTUR LAYAR (hasil inspeksi maestro hierarchy):
+#
+#   KTP *            update_info_item_input_value    -> input teks, NIK 16 digit
+#   Attachment       btn_upload                      -> membuka kamera in-app
+#   Add Document     noo_registration_doc_action_add
+#                                   [Previous]  [Submit]
+#
+# KAMERA ADA DI DALAM APLIKASI, bukan aplikasi kamera Android:
+#   f_camera / camera / btn_capture / btnSwitchCamera
+#
+# Itu penting: seluruh elemen punya resource-id sendiri, sehingga capture
+# foto tetap memakai prioritas selector pertama menurut brief. Tidak ada tap
+# koordinat sama sekali di flow ini.
+#
+# Attachment WAJIB: tombol Submit tetap terkunci sampai foto tercapture.
+# Diverifikasi manual sebelum flow ini ditulis.
+# =============================================================================
+appId: ${EWORK_APP_ID}
+---
+- extendedWaitUntil:
+    visible:
+      id: "id.edot.ework:id/update_info_item_input_value"
+    timeout: 30000
+
+# ---------- Nomor KTP ----------
+- tapOn:
+    id: "id.edot.ework:id/update_info_item_input_value"
+- inputText: ${KTP_NUMBER}
+- hideKeyboard
+
+# Tier 2: nomor KTP tersimpan sama persis - bila aplikasi memotong,
+# memformat ulang, atau menolaknya, assertion ini gagal.
+- assertVisible:
+    id: "id.edot.ework:id/update_info_item_input_value"
+    text: ${KTP_NUMBER}
+
+# ---------- Attachment: capture foto ----------
+#
+# Isi fotonya tidak diverifikasi - yang diuji adalah apakah aplikasi menerima
+# lampiran, bukan apa yang terpotret. Kamera emulator menampilkan pemandangan
+# virtual bawaan, dan itu sudah cukup.
+- scrollUntilVisible:
+    element:
+      id: "id.edot.ework:id/btn_upload"
+    direction: DOWN
+    timeout: 30000
+    visibilityPercentage: 40
+    waitToSettleTimeoutMs: 1500
+    centerElement: true
+
+- tapOn:
+    id: "id.edot.ework:id/btn_upload"
+
+# Tunggu kamera in-app siap. Pratinjau butuh waktu inisialisasi, dan menekan
+# shutter sebelum itu menghasilkan foto kosong atau crash.
+- extendedWaitUntil:
+    visible:
+      id: "id.edot.ework:id/btn_capture"
+    timeout: 30000
+
+- tapOn:
+    id: "id.edot.ework:id/btn_capture"
+
+# Setelah capture, aplikasi kembali sendiri ke layar Documents. Ditunggu
+# lewat hilangnya tombol shutter - lebih pasti daripada menebak durasinya.
+- extendedWaitUntil:
+    notVisible:
+      id: "id.edot.ework:id/btn_capture"
+    timeout: 30000
+
+# ---------- Tier 2: Submit aktif ----------
+#
+# Nomor KTP sudah diverifikasi di tempat, tepat setelah diisi.
+#
+# Submit menjadi aktif membuktikan aplikasi MENERIMA seluruh persyaratan -
+# nomor KTP DAN lampiran foto. Sebelum foto tercapture tombol ini terkunci;
+# diverifikasi manual saat inspeksi.
+#
+# TIDAK digulir: setelah capture, tombol Submit sudah berada di layar.
+# Menggulir justru memindahkannya keluar pandangan.
+- assertVisible:
+    id: "id.edot.ework:id/noo_registration_doc_action_continue"
+    enabled: true
+
+# ---------- Submit ----------
+- tapOn:
+    id: "id.edot.ework:id/noo_registration_doc_action_continue"

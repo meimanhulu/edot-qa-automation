@@ -1,0 +1,283 @@
+# =============================================================================
+# SUB-FLOW: step 2 - Locations
+#
+# Dipanggil create_customer.yaml lewat runFlow setelah step Basic selesai.
+#
+# STRUKTUR LAYAR (hasil inspeksi maestro hierarchy):
+#
+#   Address Type*   noo_registration_input_address_type   -> sheet, tap langsung
+#   Address*        noo_registration_input_address        -> input teks biasa
+#   Province*       edit_location_item_dropdown index 0   -> sheet + Apply
+#   City*           edit_location_item_dropdown index 1   -> sheet + Apply
+#   District*       edit_location_item_dropdown index 2   -> sheet + Apply
+#   Sub district*   edit_location_item_dropdown index 3   -> sheet + Apply
+#   Postal code*                                          -> terisi otomatis
+#   Longitude/Latitude                                    -> terisi dari GPS emulator
+#                                          [Previous]  [Continue]
+#
+# DUA POLA SHEET YANG BERBEDA:
+#   Address Type  -> mengetuk opsi LANGSUNG memilihnya
+#   Province dkk  -> mengetuk opsi hanya menandai; WAJIB tekan Apply
+#
+# KENAPA OPSI PERTAMA, BUKAN NILAI DARI DATA TEST:
+#   Opsi tiap level bergantung pada level di atasnya - daftar District untuk
+#   satu City berbeda dari City lain. Kombinasi yang sah hanya diketahui saat
+#   runtime. Menentukan nilainya di data test akan gagal begitu induknya
+#   berbeda, dan kegagalannya berupa "Element not found" yang menyesatkan:
+#   salah data, bukan salah aplikasi.
+#
+# POLA VERIFIKASI:
+#   Tiap field di-assert TEPAT SETELAH diisi, bukan digulir balik di akhir.
+#   NestedScrollView Android melepas view yang keluar layar dari hierarchy,
+#   sehingga menggulir balik mencari elemen yang sudah tidak ada di pohon.
+#
+# KETERBATASAN YANG DITERIMA SADAR:
+#   edit_location_item_dropdown tidak punya pembeda selain URUTAN. Locator ini
+#   rapuh terhadap perubahan tata letak - bila urutan field berubah, indeksnya
+#   ikut bergeser. Tidak ada atribut lain yang tersedia untuk membedakannya.
+# =============================================================================
+appId: ${EWORK_APP_ID}
+---
+- extendedWaitUntil:
+    visible:
+      id: "id.edot.ework:id/noo_registration_input_address_type"
+    timeout: 30000
+
+# ---------- Address Type ----------
+# Sheet ini TIDAK butuh Apply - mengetuk opsi langsung memilihnya.
+- tapOn:
+    id: "id.edot.ework:id/noo_registration_input_address_type"
+
+- extendedWaitUntil:
+    visible:
+      text: ${ADDRESS_TYPE}
+    timeout: 20000
+
+- tapOn:
+    text: ${ADDRESS_TYPE}
+
+# Tier 2: pilihan tersimpan di field, bukan hanya di sheet.
+- assertVisible:
+    id: "id.edot.ework:id/noo_registration_input_address_type"
+    text: ${ADDRESS_TYPE}
+
+# ---------- Alamat ----------
+- scrollUntilVisible:
+    element:
+      id: "id.edot.ework:id/noo_registration_input_address"
+    direction: DOWN
+    timeout: 30000
+    visibilityPercentage: 40
+    waitToSettleTimeoutMs: 1500
+    centerElement: true
+
+- tapOn:
+    id: "id.edot.ework:id/noo_registration_input_address"
+- inputText: ${CUSTOMER_ADDRESS}
+- hideKeyboard
+
+# Tier 2: alamat tersimpan sama persis dengan yang diinput.
+- assertVisible:
+    id: "id.edot.ework:id/noo_registration_input_address"
+    text: ${CUSTOMER_ADDRESS}
+
+# ---------- Cascade wilayah ----------
+# Keempat level memakai pola sama: buka sheet, tunggu daftar termuat, pilih
+# opsi pertama, tekan Apply. Ditulis eksplisit alih-alih loop supaya tiap
+# level menunggu sendiri - opsi anak baru dimuat setelah induknya di-Apply.
+
+# --- Province (index 0) ---
+- scrollUntilVisible:
+    element:
+      id: "id.edot.ework:id/edit_location_item_dropdown"
+    direction: DOWN
+    timeout: 30000
+    visibilityPercentage: 40
+    waitToSettleTimeoutMs: 1500
+    centerElement: true
+
+- tapOn:
+    id: "id.edot.ework:id/edit_location_item_dropdown"
+    index: 0
+
+- extendedWaitUntil:
+    visible:
+      id: "id.edot.ework:id/noo_location_option_item_title"
+    timeout: 30000
+
+- tapOn:
+    id: "id.edot.ework:id/noo_location_option_item_title"
+    index: 0
+
+# Beri kesempatan sheet menutup atau tombol Apply muncul.
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Apply ditekan HANYA bila tombolnya ada.
+#
+# Perilaku sheet ini tidak konsisten: pada sebagian level, mengetuk opsi
+# langsung menutup sheet dan memilihnya; pada level lain, pilihan baru
+# tersimpan setelah Apply ditekan. Tanpa kondisi ini, flow gagal dengan
+# "Element not found" di level yang sheet-nya sudah menutup sendiri.
+#
+# runFlow berkondisi menangani keduanya tanpa perlu menebak level mana
+# yang berperilaku bagaimana.
+- runFlow:
+    when:
+      visible:
+        id: "id.edot.ework:id/noo_location_option_action_apply"
+    commands:
+      - tapOn:
+          id: "id.edot.ework:id/noo_location_option_action_apply"
+      - waitForAnimationToEnd:
+          timeout: 3000
+
+# --- City (index 1) ---
+- extendedWaitUntil:
+    visible:
+      id: "id.edot.ework:id/edit_location_item_dropdown"
+    timeout: 30000
+
+- tapOn:
+    id: "id.edot.ework:id/edit_location_item_dropdown"
+    index: 1
+
+- extendedWaitUntil:
+    visible:
+      id: "id.edot.ework:id/noo_location_option_item_title"
+    timeout: 30000
+
+- tapOn:
+    id: "id.edot.ework:id/noo_location_option_item_title"
+    index: 0
+
+# Beri kesempatan sheet menutup atau tombol Apply muncul.
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Apply ditekan HANYA bila tombolnya ada.
+#
+# Perilaku sheet ini tidak konsisten: pada sebagian level, mengetuk opsi
+# langsung menutup sheet dan memilihnya; pada level lain, pilihan baru
+# tersimpan setelah Apply ditekan. Tanpa kondisi ini, flow gagal dengan
+# "Element not found" di level yang sheet-nya sudah menutup sendiri.
+#
+# runFlow berkondisi menangani keduanya tanpa perlu menebak level mana
+# yang berperilaku bagaimana.
+- runFlow:
+    when:
+      visible:
+        id: "id.edot.ework:id/noo_location_option_action_apply"
+    commands:
+      - tapOn:
+          id: "id.edot.ework:id/noo_location_option_action_apply"
+      - waitForAnimationToEnd:
+          timeout: 3000
+
+# --- District (index 2) ---
+- extendedWaitUntil:
+    visible:
+      id: "id.edot.ework:id/edit_location_item_dropdown"
+    timeout: 30000
+
+- tapOn:
+    id: "id.edot.ework:id/edit_location_item_dropdown"
+    index: 2
+
+- extendedWaitUntil:
+    visible:
+      id: "id.edot.ework:id/noo_location_option_item_title"
+    timeout: 30000
+
+- tapOn:
+    id: "id.edot.ework:id/noo_location_option_item_title"
+    index: 0
+
+# Beri kesempatan sheet menutup atau tombol Apply muncul.
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Apply ditekan HANYA bila tombolnya ada.
+#
+# Perilaku sheet ini tidak konsisten: pada sebagian level, mengetuk opsi
+# langsung menutup sheet dan memilihnya; pada level lain, pilihan baru
+# tersimpan setelah Apply ditekan. Tanpa kondisi ini, flow gagal dengan
+# "Element not found" di level yang sheet-nya sudah menutup sendiri.
+#
+# runFlow berkondisi menangani keduanya tanpa perlu menebak level mana
+# yang berperilaku bagaimana.
+- runFlow:
+    when:
+      visible:
+        id: "id.edot.ework:id/noo_location_option_action_apply"
+    commands:
+      - tapOn:
+          id: "id.edot.ework:id/noo_location_option_action_apply"
+      - waitForAnimationToEnd:
+          timeout: 3000
+
+# --- Sub district (index 3) ---
+- extendedWaitUntil:
+    visible:
+      id: "id.edot.ework:id/edit_location_item_dropdown"
+    timeout: 30000
+
+- tapOn:
+    id: "id.edot.ework:id/edit_location_item_dropdown"
+    index: 3
+
+- extendedWaitUntil:
+    visible:
+      id: "id.edot.ework:id/noo_location_option_item_title"
+    timeout: 30000
+
+- tapOn:
+    id: "id.edot.ework:id/noo_location_option_item_title"
+    index: 0
+
+# Beri kesempatan sheet menutup atau tombol Apply muncul.
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Apply ditekan HANYA bila tombolnya ada.
+#
+# Perilaku sheet ini tidak konsisten: pada sebagian level, mengetuk opsi
+# langsung menutup sheet dan memilihnya; pada level lain, pilihan baru
+# tersimpan setelah Apply ditekan. Tanpa kondisi ini, flow gagal dengan
+# "Element not found" di level yang sheet-nya sudah menutup sendiri.
+#
+# runFlow berkondisi menangani keduanya tanpa perlu menebak level mana
+# yang berperilaku bagaimana.
+- runFlow:
+    when:
+      visible:
+        id: "id.edot.ework:id/noo_location_option_action_apply"
+    commands:
+      - tapOn:
+          id: "id.edot.ework:id/noo_location_option_action_apply"
+      - waitForAnimationToEnd:
+          timeout: 3000
+
+# Postal code terisi OTOMATIS setelah Sub district dipilih.
+
+# ---------- Tier 2: Continue aktif ----------
+#
+# Address Type dan Address sudah diverifikasi di tempat, tepat setelah diisi.
+# Nilai cascade ditentukan aplikasi saat runtime sehingga tidak ada expected
+# value untuk dibandingkan - yang dibuktikan adalah keempatnya terisi,
+# ditandai oleh tombol Continue yang menjadi aktif.
+- scrollUntilVisible:
+    element:
+      id: "id.edot.ework:id/noo_registration_action_continue"
+    direction: DOWN
+    timeout: 30000
+    visibilityPercentage: 40
+    waitToSettleTimeoutMs: 1500
+    centerElement: true
+
+- assertVisible:
+    id: "id.edot.ework:id/noo_registration_action_continue"
+    enabled: true
+
+- tapOn:
+    id: "id.edot.ework:id/noo_registration_action_continue"

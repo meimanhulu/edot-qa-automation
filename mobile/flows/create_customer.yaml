@@ -1,85 +1,218 @@
 # =============================================================================
 # TC-MOB-002 - Create customer di eWork SFA
 #
-# Assertion Tier 2: memverifikasi record ADA dan NILAINYA sama dengan input.
-# Brief menyatakan toast sukses saja tidak cukup.
+# Brief: "input the data and assert it appears correctly AFTER CREATION (Tier 2)".
+# Flow ini berjalan tuntas: Basic -> Locations -> Documents -> Submit, lalu
+# memverifikasi record benar-benar muncul di daftar customer.
 #
-# Data customer dilewatkan sebagai variabel oleh wrapper Pytest, yang
+# Seluruh data dilewatkan sebagai variabel oleh wrapper Pytest, yang
 # mengambilnya dari modul AI (Phase 3A). Tidak ada nilai yang di-hardcode.
 #
-# STRUKTUR FORM (hasil inspeksi maestro hierarchy):
-#   Outlet Name*    noo_registration_input_outlet_name
-#   Phone No*       noo_registration_input_phone      (prefix +62 terpisah)
-#   Email           noo_registration_input_email      (TANPA tanda *, opsional)
-#   Contact Person* noo_registration_input_contact_person
+# -----------------------------------------------------------------------------
+# POLA VERIFIKASI: assert TEPAT SETELAH input, bukan digulir balik di akhir.
+#
+# Versi sebelumnya mengisi seluruh form lalu menggulir kembali ke atas untuk
+# memverifikasi. Itu gagal terus-menerus dengan "No visible element found",
+# dan penyebabnya bukan timing: NestedScrollView Android MELEPAS view yang
+# keluar layar dari hierarchy. Menggulir balik berarti mencari elemen yang
+# sudah tidak ada di pohon - bukan sekadar tidak terlihat.
+#
+# Memverifikasi di tempat menghilangkan seluruh gulir balik, dan sekaligus
+# lebih baik sebagai desain: kegagalan menunjuk langsung ke field yang
+# bermasalah, bukan ke operasi gulir yang jauh dari penyebabnya.
 # =============================================================================
 appId: ${EWORK_APP_ID}
 ---
 - runFlow: shared/login.yaml
 
-# Tunggu dashboard termuat setelah login.
+# ---------- Masuk ke form pendaftaran ----------
+#
+# Tap "New Customer" dibungkus retry: perilakunya tidak konsisten - kadang
+# langsung membuka daftar, kadang tetap di dashboard tanpa pesan apa pun.
 - extendedWaitUntil:
     visible:
       text: "New Customer"
     timeout: 60000
 
-- tapOn:
-    text: "New Customer"
-
-# Daftar customer memuat datanya lewat jaringan, jadi tombol tambah baru
-# muncul beberapa saat kemudian. Timeout 30 detik terbukti kurang - flow
-# gagal dengan "Assertion is false" padahal halamannya memang sedang memuat.
-- extendedWaitUntil:
-    visible:
-      id: "id.edot.ework:id/noo_label_add_new_cust"
-    timeout: 90000
+- retry:
+    maxRetries: 3
+    commands:
+      - tapOn:
+          text: "New Customer"
+      - extendedWaitUntil:
+          visible:
+            id: "id.edot.ework:id/noo_label_add_new_cust"
+          timeout: 30000
 
 - tapOn:
     id: "id.edot.ework:id/noo_label_add_new_cust"
 
-# Tunggu form benar-benar siap sebelum mengetik.
 - extendedWaitUntil:
     visible:
       id: "id.edot.ework:id/noo_registration_input_outlet_name"
-    timeout: 60000
+    timeout: 30000
 
-# ---------- Isi form ----------
+# ---------- Step 1: Basic ----------
 
 - tapOn:
     id: "id.edot.ework:id/noo_registration_input_outlet_name"
 - inputText: ${CUSTOMER_NAME}
-
-- tapOn:
-    id: "id.edot.ework:id/noo_registration_input_phone"
-- inputText: ${CUSTOMER_PHONE}
-
-- tapOn:
-    id: "id.edot.ework:id/noo_registration_input_email"
-- inputText: ${CUSTOMER_EMAIL}
-
-- tapOn:
-    id: "id.edot.ework:id/noo_registration_input_contact_person"
-- inputText: ${CUSTOMER_CONTACT_PERSON}
-
-- hideKeyboard
-
-# ---------- Tier 2: verifikasi nilai yang benar-benar masuk ----------
-#
-# Diverifikasi SEBELUM submit karena form ini bertahap, dan langkah
-# berikutnya belum diinspeksi. Membaca balik nilai di field membuktikan
-# input benar-benar diterima aplikasi - bukan sekadar diketik lalu hilang.
-#
-# assertVisible dengan teks PERSIS: bila aplikasi memotong, mengubah, atau
-# tidak menerima nilainya, assertion ini gagal.
-
+# Tier 2: nilai tersimpan sama persis dengan yang diinput.
 - assertVisible:
     id: "id.edot.ework:id/noo_registration_input_outlet_name"
     text: ${CUSTOMER_NAME}
 
+- tapOn:
+    id: "id.edot.ework:id/noo_registration_input_phone"
+- inputText: ${CUSTOMER_PHONE}
+# Tier 2: nomor telepon diterima apa adanya, tanpa dipotong atau diformat ulang.
 - assertVisible:
     id: "id.edot.ework:id/noo_registration_input_phone"
     text: ${CUSTOMER_PHONE}
 
+- tapOn:
+    id: "id.edot.ework:id/noo_registration_input_email"
+- inputText: ${CUSTOMER_EMAIL}
+# Tier 2: email tersimpan utuh.
+- assertVisible:
+    id: "id.edot.ework:id/noo_registration_input_email"
+    text: ${CUSTOMER_EMAIL}
+
+- hideKeyboard
+
+# Contact Person berada di bawah lipatan layar.
+- scrollUntilVisible:
+    element:
+      id: "id.edot.ework:id/noo_registration_input_contact_person"
+    direction: DOWN
+    timeout: 30000
+    visibilityPercentage: 40
+    waitToSettleTimeoutMs: 1500
+    centerElement: true
+
+- tapOn:
+    id: "id.edot.ework:id/noo_registration_input_contact_person"
+- inputText: ${CUSTOMER_CONTACT_PERSON}
+- hideKeyboard
+# Tier 2: nama kontak tersimpan sama persis.
 - assertVisible:
     id: "id.edot.ework:id/noo_registration_input_contact_person"
     text: ${CUSTOMER_CONTACT_PERSON}
+
+# --- Sales Information ---
+#
+# Channel Type ditetapkan; Customer Type diacak tiap run dari daftar yang sah
+# untuk channel tersebut. Opsi Customer Type BERGANTUNG pada Channel Type,
+# jadi mengacak keduanya berisiko menghasilkan kombinasi tak sah.
+
+- scrollUntilVisible:
+    element:
+      id: "id.edot.ework:id/noo_registration_input_channel"
+    direction: DOWN
+    timeout: 30000
+    visibilityPercentage: 40
+    waitToSettleTimeoutMs: 1500
+    centerElement: true
+
+- tapOn:
+    id: "id.edot.ework:id/noo_registration_input_channel"
+- extendedWaitUntil:
+    visible:
+      text: ${CHANNEL_TYPE}
+    timeout: 20000
+- tapOn:
+    text: ${CHANNEL_TYPE}
+# Tier 2: pilihan benar-benar tersimpan di field, bukan hanya di sheet.
+- assertVisible:
+    id: "id.edot.ework:id/noo_registration_input_channel"
+    text: ${CHANNEL_TYPE}
+
+- scrollUntilVisible:
+    element:
+      id: "id.edot.ework:id/noo_registration_input_outlet_type"
+    direction: DOWN
+    timeout: 30000
+    visibilityPercentage: 40
+    waitToSettleTimeoutMs: 1500
+    centerElement: true
+
+- tapOn:
+    id: "id.edot.ework:id/noo_registration_input_outlet_type"
+- extendedWaitUntil:
+    visible:
+      text: ${CUSTOMER_TYPE}
+    timeout: 20000
+- tapOn:
+    text: ${CUSTOMER_TYPE}
+# Tier 2: Customer Type tersimpan.
+- assertVisible:
+    id: "id.edot.ework:id/noo_registration_input_outlet_type"
+    text: ${CUSTOMER_TYPE}
+
+# Pricelist tidak dipilih - nilainya sudah "Default" secara bawaan dan
+# field-nya tidak bertanda wajib. Nilainya tetap diverifikasi.
+- scrollUntilVisible:
+    element:
+      id: "id.edot.ework:id/noo_registration_input_price_list"
+    direction: DOWN
+    timeout: 30000
+    visibilityPercentage: 40
+    waitToSettleTimeoutMs: 1500
+    centerElement: true
+
+- assertVisible:
+    id: "id.edot.ework:id/noo_registration_input_price_list"
+    text: "Default"
+
+# Tier 2: Continue aktif membuktikan aplikasi MENERIMA seluruh input wajib,
+# bukan sekadar menampilkannya.
+- scrollUntilVisible:
+    element:
+      id: "id.edot.ework:id/noo_registration_action_submit"
+    direction: DOWN
+    timeout: 30000
+    visibilityPercentage: 40
+    waitToSettleTimeoutMs: 1500
+    centerElement: true
+
+- assertVisible:
+    id: "id.edot.ework:id/noo_registration_action_submit"
+    enabled: true
+
+- tapOn:
+    id: "id.edot.ework:id/noo_registration_action_submit"
+
+# ---------- Step 2: Locations ----------
+- runFlow: steps/location.yaml
+
+# ---------- Step 3: Documents, lalu Submit ----------
+- runFlow: steps/documents.yaml
+
+# ---------- Step 4: Approval Signature, konfirmasi, layar sukses ----------
+- runFlow: steps/signature.yaml
+
+# ---------- Tier 2 akhir: record BENAR-BENAR tercipta ----------
+#
+# Brief: "input the data and assert it appears correctly AFTER CREATION".
+# Verifikasi di form membuktikan input diterima; bagian ini membuktikan
+# RECORD-nya ada di daftar. Toast sukses tidak diterima sebagai bukti.
+#
+# Customer baru muncul di URUTAN PALING BAWAH daftar, jadi perlu digulir.
+- extendedWaitUntil:
+    visible:
+      id: "id.edot.ework:id/noo_label_add_new_cust"
+    timeout: 60000
+
+- scrollUntilVisible:
+    element:
+      text: ${CUSTOMER_NAME}
+    direction: DOWN
+    timeout: 60000
+    visibilityPercentage: 40
+    waitToSettleTimeoutMs: 1500
+    centerElement: true
+
+# Tier 2: customer yang baru dibuat ada di daftar dengan nama PERSIS
+# seperti yang diinput.
+- assertVisible:
+    text: ${CUSTOMER_NAME}

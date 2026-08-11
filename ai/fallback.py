@@ -159,10 +159,117 @@ def faker_company() -> CompanyData:
     )
 
 
+# Jenis usaha untuk nama outlet, supaya variasinya tidak selalu "Toko".
+OUTLET_PREFIXES = ["Toko", "Warung", "Kios", "UD", "Agen", "Grosir", "Depot"]
+
+
 def faker_customer() -> CustomerData:
-    """Hasilkan CustomerData yang dijamin lolos schema."""
+    """
+    Hasilkan CustomerData acak yang dijamin lolos schema.
+
+    Setiap pemanggilan menghasilkan nama, nomor, dan alamat berbeda supaya
+    run berulang tidak bentrok dengan data sebelumnya di shared environment.
+    """
+    prefix = random.choice(OUTLET_PREFIXES)
+    words = random.sample(BUSINESS_WORDS, k=2)
+
     return CustomerData(
-        name=f"Toko {' '.join(random.sample(BUSINESS_WORDS, k=2))}",
+        name=f"{prefix} {' '.join(words)}",
         contact="08" + "".join(str(random.randint(0, 9)) for _ in range(10)),
         address=f"Jl. {fake.street_name()} No. {random.randint(1, 200)}, {fake.city()}",
     )
+
+
+# --- Opsi dropdown form New Customer di eWork SFA ---
+#
+# Disalin dari daftar yang benar-benar muncul di aplikasi, bukan dikarang.
+#
+# CATATAN: opsi Customer Type BERGANTUNG pada Channel Type yang dipilih.
+# Daftar di bawah diverifikasi saat Channel Type = "Modern Trade (MT)".
+# Bila Channel Type diacak juga, kombinasi bisa tidak sah dan flow gagal
+# dengan "Element not found" yang menyesatkan - jadi Channel Type sengaja
+# ditetapkan sampai daftar untuk General Trade ikut diverifikasi.
+CHANNEL_TYPE = "Modern Trade (MT)"
+
+CUSTOMER_TYPES = [
+    "Semi Grosir",
+    "Grosir",
+    "Retailer Small",
+    "Retailer Medium",
+    "Retailer Large",
+    "Big Grosir",
+]
+
+
+def random_customer_type() -> str:
+    """Pilih Customer Type acak dari daftar yang sah untuk Modern Trade (MT)."""
+    return random.choice(CUSTOMER_TYPES)
+
+
+# Address Type di step Locations. "Others" sengaja tidak dipakai - dua nilai
+# lain lebih mewakili pemakaian nyata dan keduanya sah untuk semua customer.
+ADDRESS_TYPES = ["Delivery Address", "Invoice Address"]
+
+
+def random_address_type() -> str:
+    """Pilih Address Type acak antara Delivery dan Invoice."""
+    return random.choice(ADDRESS_TYPES)
+
+
+def random_indonesian_address() -> str:
+    """
+    Alamat jalan Indonesia acak untuk field Address di step Locations.
+
+    Hanya nama jalan dan nomor - provinsi sampai kode pos dipilih terpisah
+    lewat cascade, dan nilainya ditentukan aplikasi saat runtime.
+    """
+    return f"Jl. {fake.street_name()} No. {random.randint(1, 250)}"
+
+
+# Kode wilayah untuk NIK - dua digit provinsi + dua digit kab/kota.
+# Contoh nyata, bukan angka acak, supaya NIK terbaca wajar.
+NIK_REGION_CODES = ["3271", "3173", "3578", "3374", "1275", "6471", "5171"]
+
+
+def random_nik() -> str:
+    """
+    NIK 16 digit dengan struktur yang benar.
+
+        PP KK KC DDMMYY NNNN
+        |  |  |  |      +- nomor urut 4 digit
+        |  |  |  +-------- tanggal lahir
+        |  |  +----------- kode kecamatan
+        |  +-------------- kode kabupaten/kota
+        +----------------- kode provinsi
+
+    Untuk perempuan, tanggal lahir DITAMBAH 40 - aturan asli NIK. Di sini
+    selalu dibuat sebagai laki-laki (tanggal 1-28) agar nilainya selalu sah
+    dan tidak bergantung pada asumsi gender data test.
+
+    Nomornya fiktif: kombinasi kode wilayah dan tanggal memang valid secara
+    format, tetapi tidak merujuk pada orang nyata.
+    """
+    region = random.choice(NIK_REGION_CODES)
+    kecamatan = f"{random.randint(1, 30):02d}"
+    day = f"{random.randint(1, 28):02d}"
+    month = f"{random.randint(1, 12):02d}"
+    year = f"{random.randint(70, 99):02d}"
+    serial = f"{random.randint(1, 9999):04d}"
+    return f"{region}{kecamatan}{day}{month}{year}{serial}"
+
+
+def customer_email(name: str) -> str:
+    """
+    Email diturunkan dari nama outlet, berdomain gmail.com.
+
+    Domain gmail dipakai karena form eWork SFA menerima email umum, dan
+    domain kustom berisiko ditolak validasi. Sufiks angka acak mencegah
+    bentrok bila nama outlet kebetulan sama pada run berbeda.
+    """
+    slug = "".join(c.lower() for c in name if c.isalnum())[:20]
+    return f"{slug}{random.randint(100, 999)}@gmail.com"
+
+
+def contact_person_name() -> str:
+    """Nama orang acak untuk field Contact Person."""
+    return fake.name()

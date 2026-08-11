@@ -1,0 +1,107 @@
+# =============================================================================
+# SUB-FLOW: Approval Signature -> Register -> konfirmasi -> layar sukses
+#
+# Dipanggil create_customer.yaml setelah step Documents di-submit.
+#
+# STRUKTUR (hasil inspeksi maestro hierarchy):
+#
+#   Approval Signature sheet
+#     tv_title                              "Approval Signature"
+#     tv_signature_contract                 pernyataan kebenaran data
+#     signature_view                        kanvas tanda tangan
+#     update_info_action_repeat_signature   MUNCUL setelah tergores
+#     update_info_action_submit             tombol "Register"
+#
+#   Dialog konfirmasi
+#     dialog_title    "Are you sure to save this customer data?"
+#     btn_positive    "Yes"
+#     btn_negative    "Cancel"
+#
+#   Layar sukses
+#     tv_title_success      "Data Saved Successfully"
+#     btn_success_continue  "Continue"
+#
+# CARA MENGGORES TANDA TANGAN:
+#   swipe diarahkan dengan `from: id:`, BUKAN koordinat mentah. Maestro
+#   menghitung titiknya sendiri dari posisi elemen, sehingga tetap memakai
+#   prioritas selector pertama menurut brief - nol tap koordinat di seluruh
+#   suite mobile ini.
+#
+#   Isi tanda tangannya tidak relevan; yang diuji adalah apakah aplikasi
+#   menerima input tanda tangan, bukan bentuk coretannya.
+# =============================================================================
+appId: ${EWORK_APP_ID}
+---
+- extendedWaitUntil:
+    visible:
+      id: "id.edot.ework:id/signature_view"
+    timeout: 60000
+
+- assertVisible:
+    text: "Approval Signature"
+
+# ---------- Gores tanda tangan ----------
+# Beberapa sapuan agar goresannya cukup untuk dianggap sah oleh aplikasi.
+- swipe:
+    from:
+      id: "id.edot.ework:id/signature_view"
+    direction: DOWN
+    duration: 400
+
+- swipe:
+    from:
+      id: "id.edot.ework:id/signature_view"
+    direction: RIGHT
+    duration: 400
+
+- swipe:
+    from:
+      id: "id.edot.ework:id/signature_view"
+    direction: DOWN
+    duration: 400
+
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# Tier 2: tombol "Repeat Signature" BARU MUNCUL setelah kanvas tergores.
+# Kehadirannya membuktikan aplikasi benar-benar menerima goresan - penanda
+# yang jauh lebih pasti daripada sekadar menganggap swipe berhasil.
+- assertVisible:
+    id: "id.edot.ework:id/update_info_action_repeat_signature"
+
+# Tier 2: Register aktif membuktikan seluruh persyaratan pendaftaran
+# terpenuhi, termasuk tanda tangan.
+- assertVisible:
+    id: "id.edot.ework:id/update_info_action_submit"
+    enabled: true
+
+- tapOn:
+    id: "id.edot.ework:id/update_info_action_submit"
+
+# ---------- Dialog konfirmasi ----------
+- extendedWaitUntil:
+    visible:
+      id: "id.edot.ework:id/dialog_title"
+    timeout: 30000
+
+- assertVisible:
+    text: "Are you sure to save this customer data?"
+
+- tapOn:
+    id: "id.edot.ework:id/btn_positive"
+
+# ---------- Layar sukses ----------
+#
+# Timeout panjang: penyimpanan butuh waktu, dan aplikasi menyatakan data
+# diunggah belakangan saat koneksi tersedia.
+- extendedWaitUntil:
+    visible:
+      id: "id.edot.ework:id/btn_success_continue"
+    timeout: 90000
+
+# Tier 2: konfirmasi eksplisit dari aplikasi bahwa data tersimpan.
+- assertVisible:
+    text: "Data Saved Successfully"
+
+- tapOn:
+    id: "id.edot.ework:id/btn_success_continue"

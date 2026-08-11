@@ -2,6 +2,15 @@
 import allure
 import pytest
 
+from ai.fallback import (
+    CHANNEL_TYPE,
+    contact_person_name,
+    customer_email,
+    random_address_type,
+    random_customer_type,
+    random_indonesian_address,
+    random_nik,
+)
 from mobile.runner import maestro_available, run_flow
 
 pytestmark = pytest.mark.skipif(
@@ -25,10 +34,23 @@ def test_create_customer(env, customer_data):
     "flow selesai tanpa error".
 
     Email disertakan meski field-nya opsional (tanpa tanda *), supaya seluruh
-    field terisi dan verifikasi mencakup lebih banyak permukaan.
+    field terisi dan verifikasi mencakup lebih banyak permukaan. Domainnya
+    gmail.com - domain kustom berisiko ditolak validasi aplikasi.
+
+    Seluruh nilai acak per run: nama outlet, nomor telepon, email, dan nama
+    contact person. Test yang selalu memakai nilai sama bisa lolos karena
+    record lama, bukan karena input baru benar-benar diterima.
     """
-    # Nama dibuat unik per run supaya tidak bentrok dengan data sebelumnya
-    # di shared environment.
+    # Seluruh nilai dibuat ACAK per run supaya tidak bentrok dengan data
+    # sebelumnya di shared environment, dan supaya test tidak diam-diam
+    # bergantung pada satu nilai tetap.
+    email = customer_email(customer_data.name)
+    contact = contact_person_name()
+    customer_type = random_customer_type()
+    address_type = random_address_type()
+    address = random_indonesian_address()
+    ktp = random_nik()
+
     result = run_flow(
         "create_customer.yaml",
         extra_env={
@@ -38,15 +60,26 @@ def test_create_customer(env, customer_data):
             "EWORK_PASSWORD": env["ework_password"],
             "CUSTOMER_NAME": customer_data.name,
             "CUSTOMER_PHONE": customer_data.contact.lstrip("0"),
-            "CUSTOMER_EMAIL": f"{customer_data.name.lower().replace(' ', '')}@example.co.id",
-            "CUSTOMER_CONTACT_PERSON": "Arya QA",
+            "CUSTOMER_EMAIL": email,
+            "CUSTOMER_CONTACT_PERSON": contact,
+            "CHANNEL_TYPE": CHANNEL_TYPE,
+            "CUSTOMER_TYPE": customer_type,
+            "ADDRESS_TYPE": address_type,
+            "CUSTOMER_ADDRESS": address,
+            "KTP_NUMBER": ktp,
         },
     )
 
     allure.attach(
-        f"name           : {customer_data.name}\n"
+        f"outlet name    : {customer_data.name}\n"
         f"phone          : {customer_data.contact.lstrip('0')}\n"
-        f"contact person : Arya QA",
+        f"email          : {email}\n"
+        f"contact person : {contact}\n"
+        f"channel type   : {CHANNEL_TYPE}\n"
+        f"customer type  : {customer_type}\n"
+        f"address type   : {address_type}\n"
+        f"address        : {address}\n"
+        f"ktp            : {ktp}",
         name="data customer yang dipakai",
         attachment_type=allure.attachment_type.TEXT,
     )
