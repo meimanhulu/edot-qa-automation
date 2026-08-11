@@ -1,10 +1,15 @@
 # =============================================================================
 # TC-MOB-001 - Login eWork SFA
-# Assertion Tier 1: cukup pastikan dashboard tampil.
+#
+# Assertion Tier 1: memastikan login berhasil dan layar login ditinggalkan.
 # =============================================================================
 appId: ${EWORK_APP_ID}
 ---
 - runFlow: shared/login.yaml
 
-- assertVisible:
-    id: "TODO_dashboard_anchor"
+# Tunggu layar login BENAR-BENAR hilang. Itu penanda login berhasil, dan lebih
+# pasti daripada menunggu elemen dashboard yang belum diverifikasi.
+- extendedWaitUntil:
+    notVisible:
+      id: "id.edot.ework:id/btn_signin"
+    timeout: 60000

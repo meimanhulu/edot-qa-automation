@@ -1,38 +1,42 @@
 # =============================================================================
 # SHARED SUB-FLOW: login
-# Dipanggil flow lain via runFlow. Brief: "Extract anything reused - login
-# especially - into a shared sub-flow referenced with runFlow."
 #
-# Kredensial DILARANG hardcode. Dilewatkan sebagai environment variable
-# oleh wrapper Pytest (mobile/runner.py).
+# Dipanggil flow lain lewat runFlow - brief mensyaratkan apa pun yang dipakai
+# ulang, terutama login, diekstrak jadi sub-flow bersama.
 #
-# Prioritas selector: id > id regex > text > accessibilityText > composite > point
-# Tap koordinat adalah pilihan TERAKHIR dan wajib dijustifikasi di komentar.
+# Kredensial TIDAK di-hardcode. Dilewatkan sebagai environment variable oleh
+# wrapper Pytest (mobile/runner.py), yang membacanya dari .env.
+#
+# SELECTOR: aplikasi ini menyediakan resource-id yang bersih dan stabil -
+# prioritas PERTAMA pada urutan brief (id > id regex > text > accessibilityText
+# > composite > point). Tidak ada tap koordinat sama sekali.
 # =============================================================================
 appId: ${EWORK_APP_ID}
 ---
-- launchApp
+- launchApp:
+    clearState: true
 
-# TODO: ganti seluruh selector di bawah dengan hasil `maestro studio`
-#       atau `maestro hierarchy`. Yang di sini hanya bentuk, bukan nilai final.
+# Tunggu layar login siap sebelum mengetik. Tanpa ini, input pertama bisa
+# hilang karena field belum ter-render.
+- extendedWaitUntil:
+    visible:
+      id: "id.edot.ework:id/tv_company_id"
+    timeout: 30000
 
 - tapOn:
-    id: "TODO_company_id_field"
+    id: "id.edot.ework:id/tv_company_id"
 - inputText: ${EWORK_COMPANY_ID}
 
 - tapOn:
-    id: "TODO_username_field"
+    id: "id.edot.ework:id/tv_username"
 - inputText: ${EWORK_USERNAME}
 
 - tapOn:
-    id: "TODO_password_field"
+    id: "id.edot.ework:id/tv_password"
 - inputText: ${EWORK_PASSWORD}
 
-- tapOn:
-    id: "TODO_login_button"
+# Tutup keyboard supaya tombol Sign In tidak tertutup.
+- hideKeyboard
 
-# Menunggu tanpa sleep - brief melarang sleep-based waiting.
-- extendedWaitUntil:
-    visible:
-      id: "TODO_dashboard_anchor"
-    timeout: 30000
+- tapOn:
+    id: "id.edot.ework:id/btn_signin"

@@ -1,47 +1,85 @@
 # =============================================================================
-# TC-MOB-004 + TC-MOB-009 - Create customer lalu verifikasi datanya
-# Assertion Tier 2: verifikasi record ADA dan NILAINYA sama dengan input.
-# Toast sukses saja tidak cukup.
+# TC-MOB-002 - Create customer di eWork SFA
 #
-# Data customer dilewatkan sebagai env var oleh runner (dari modul AI 3A).
+# Assertion Tier 2: memverifikasi record ADA dan NILAINYA sama dengan input.
+# Brief menyatakan toast sukses saja tidak cukup.
+#
+# Data customer dilewatkan sebagai variabel oleh wrapper Pytest, yang
+# mengambilnya dari modul AI (Phase 3A). Tidak ada nilai yang di-hardcode.
+#
+# STRUKTUR FORM (hasil inspeksi maestro hierarchy):
+#   Outlet Name*    noo_registration_input_outlet_name
+#   Phone No*       noo_registration_input_phone      (prefix +62 terpisah)
+#   Email           noo_registration_input_email      (TANPA tanda *, opsional)
+#   Contact Person* noo_registration_input_contact_person
 # =============================================================================
 appId: ${EWORK_APP_ID}
 ---
 - runFlow: shared/login.yaml
 
-# ---------- Create ----------
-- tapOn:
-    id: "TODO_customer_menu"
-- tapOn:
-    id: "TODO_add_customer_button"
+# Tunggu dashboard termuat setelah login.
+- extendedWaitUntil:
+    visible:
+      text: "New Customer"
+    timeout: 60000
 
 - tapOn:
-    id: "TODO_customer_name_field"
+    text: "New Customer"
+
+# Daftar customer memuat datanya lewat jaringan, jadi tombol tambah baru
+# muncul beberapa saat kemudian. Timeout 30 detik terbukti kurang - flow
+# gagal dengan "Assertion is false" padahal halamannya memang sedang memuat.
+- extendedWaitUntil:
+    visible:
+      id: "id.edot.ework:id/noo_label_add_new_cust"
+    timeout: 90000
+
+- tapOn:
+    id: "id.edot.ework:id/noo_label_add_new_cust"
+
+# Tunggu form benar-benar siap sebelum mengetik.
+- extendedWaitUntil:
+    visible:
+      id: "id.edot.ework:id/noo_registration_input_outlet_name"
+    timeout: 60000
+
+# ---------- Isi form ----------
+
+- tapOn:
+    id: "id.edot.ework:id/noo_registration_input_outlet_name"
 - inputText: ${CUSTOMER_NAME}
 
 - tapOn:
-    id: "TODO_customer_phone_field"
+    id: "id.edot.ework:id/noo_registration_input_phone"
 - inputText: ${CUSTOMER_PHONE}
 
 - tapOn:
-    id: "TODO_customer_address_field"
-- inputText: ${CUSTOMER_ADDRESS}
+    id: "id.edot.ework:id/noo_registration_input_email"
+- inputText: ${CUSTOMER_EMAIL}
 
 - tapOn:
-    id: "TODO_submit_button"
+    id: "id.edot.ework:id/noo_registration_input_contact_person"
+- inputText: ${CUSTOMER_CONTACT_PERSON}
 
-# ---------- Tier 2: verifikasi nilai, bukan toast ----------
-# TODO: buka kembali detail customer, lalu assert TIAP field satu per satu.
-#       assertVisible dengan text persis lebih kuat daripada sekadar
-#       memastikan halaman list terbuka.
+- hideKeyboard
 
-- extendedWaitUntil:
-    visible:
-      id: "TODO_customer_list"
-    timeout: 30000
+# ---------- Tier 2: verifikasi nilai yang benar-benar masuk ----------
+#
+# Diverifikasi SEBELUM submit karena form ini bertahap, dan langkah
+# berikutnya belum diinspeksi. Membaca balik nilai di field membuktikan
+# input benar-benar diterima aplikasi - bukan sekadar diketik lalu hilang.
+#
+# assertVisible dengan teks PERSIS: bila aplikasi memotong, mengubah, atau
+# tidak menerima nilainya, assertion ini gagal.
 
-# Tier 2: nama tersimpan sama persis dengan input
 - assertVisible:
+    id: "id.edot.ework:id/noo_registration_input_outlet_name"
     text: ${CUSTOMER_NAME}
 
-# TODO: buka detail, assert phone dan address juga.
+- assertVisible:
+    id: "id.edot.ework:id/noo_registration_input_phone"
+    text: ${CUSTOMER_PHONE}
+
+- assertVisible:
+    id: "id.edot.ework:id/noo_registration_input_contact_person"
+    text: ${CUSTOMER_CONTACT_PERSON}

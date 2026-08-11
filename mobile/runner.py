@@ -20,22 +20,24 @@ import allure
 FLOWS_DIR = Path(__file__).parent / "flows"
 
 
-def _maestro_command(flow_path: Path) -> list[str]:
+def _maestro_command(flow_path: Path, env_vars: dict) -> list[str]:
     """
-    Susun perintah sesuai sistem operasi.
+    Susun perintah maestro beserta variabel yang diteruskan ke flow.
 
-    Windows: Maestro tidak jalan native, harus lewat WSL. Path Windows
-    (C:\\Users\\...) juga harus diterjemahkan ke path WSL (/mnt/c/Users/...).
-    Detail setup ada di docs/MAESTRO_SETUP_WINDOWS.md.
+    Sejak Maestro 1.39.9 CLI-nya berjalan NATIVE di Windows, sehingga WSL tidak
+    lagi dibutuhkan dan tidak ada penerjemahan path.
+
+    Variabel dilewatkan lewat flag `-e`, BUKAN lewat environment proses.
+    Diverifikasi: dengan environment proses saja, `appId: ${EWORK_APP_ID}`
+    terbaca sebagai "undefined" dan flow gagal dengan
+    "Package undefined is not installed". Flag `-e` diteruskan sampai ke
+    sub-flow yang dipanggil runFlow.
     """
-    if platform.system() == "Windows":
-        wsl_path = str(flow_path).replace("\\", "/")
-        if len(wsl_path) > 1 and wsl_path[1] == ":":
-            drive = wsl_path[0].lower()
-            wsl_path = f"/mnt/{drive}{wsl_path[2:]}"
-        return ["wsl", "maestro", "test", wsl_path]
-
-    return ["maestro", "test", str(flow_path)]
+    cmd = ["maestro", "test"]
+    for key, value in env_vars.items():
+        cmd += ["-e", f"{key}={value}"]
+    cmd.append(str(flow_path))
+    return cmd
 
 
 def maestro_available() -> bool:
@@ -49,7 +51,7 @@ def run_flow(flow_name: str, extra_env: dict | None = None, timeout: int = 300):
     """
     Jalankan satu flow Maestro.
 
-    Kredensial dan data test dilewatkan sebagai environment variable —
+    Kredensial dan data test dilewatkan lewat flag `-e` ke Maestro —
     brief melarang hardcode di YAML.
 
     Mengembalikan CompletedProcess apa adanya. Output selalu dilampirkan
@@ -58,14 +60,11 @@ def run_flow(flow_name: str, extra_env: dict | None = None, timeout: int = 300):
     """
     flow_path = FLOWS_DIR / flow_name
 
-    env = os.environ.copy()
-    if extra_env:
-        env.update({k: str(v) for k, v in extra_env.items()})
-
-    cmd = _maestro_command(flow_path)
+    passthrough = {k: str(v) for k, v in (extra_env or {}).items() if v}
+    cmd = _maestro_command(flow_path, passthrough)
 
     result = subprocess.run(
-        cmd, env=env, capture_output=True, text=True, timeout=timeout
+        cmd, capture_output=True, text=True, timeout=timeout, shell=True
     )
 
     allure.attach(
