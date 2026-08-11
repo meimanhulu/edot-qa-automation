@@ -1,0 +1,9 @@
+outlet name    : Warung Rejeki Berkah 3166
+phone          : 87866022360
+email          : warungrejekiberkah31435@gmail.com
+contact person : Viman Hardiansyah
+channel type   : Modern Trade (MT)
+customer type  : Retailer Medium
+address type   : Invoice Address
+address        : Jl. Gg. Siliwangi No. 21
+ktp            : 3173192707937563

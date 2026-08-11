@@ -1,0 +1,19 @@
+{
+  "source": "fallback",
+  "reason": "AI_API_KEY tidak diisi",
+  "data": {
+    "name": "CV Mandiri Rejeki 2406",
+    "email": "admin@cvmandirirejeki2406.co.id",
+    "phone": "80270606700",
+    "industry_type": "Construction",
+    "company_type": "Holding Company",
+    "language": "English",
+    "street_address": "Jl. Gang M.H Thamrin No. 8",
+    "country": "Indonesia",
+    "province": "GORONTALO",
+    "city": "KOTA GORONTALO",
+    "district": "SIPATANA",
+    "sub_district": "MOLOSIFAT U",
+    "postal_code": ""
+  }
+}

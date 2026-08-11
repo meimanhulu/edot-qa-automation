@@ -1,0 +1,19 @@
+{
+  "source": "fallback",
+  "reason": "AI_API_KEY tidak diisi",
+  "data": {
+    "name": "CV Sinar Jaya 9584",
+    "email": "admin@cvsinarjaya9584.co.id",
+    "phone": "81023615538",
+    "industry_type": "Entertainment and Media",
+    "company_type": "Manufacturer",
+    "language": "Indonesia",
+    "street_address": "Jl. Jalan Jamika No. 24",
+    "country": "Indonesia",
+    "province": "GORONTALO",
+    "city": "KOTA GORONTALO",
+    "district": "SIPATANA",
+    "sub_district": "TAPA",
+    "postal_code": ""
+  }
+}

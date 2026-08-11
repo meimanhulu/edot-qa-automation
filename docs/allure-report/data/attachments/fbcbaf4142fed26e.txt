@@ -1,0 +1,15 @@
+Running on Pixel_7
+ > Flow login
+Run shared/login.yaml...
+  Launch app "${EWORK_APP_ID}" with clear state... COMPLETED
+  Assert that id: id.edot.ework:id/tv_company_id is visible... COMPLETED
+  Tap on id: id.edot.ework:id/tv_company_id... COMPLETED
+  Input text ${EWORK_COMPANY_ID}... COMPLETED
+  Tap on id: id.edot.ework:id/tv_username... COMPLETED
+  Input text ${EWORK_USERNAME}... COMPLETED
+  Tap on id: id.edot.ework:id/tv_password... COMPLETED
+  Input text ${EWORK_PASSWORD}... COMPLETED
+  Hide Keyboard... COMPLETED
+  Tap on id: id.edot.ework:id/btn_signin... COMPLETED
+Run shared/login.yaml... COMPLETED
+Assert that id: id.edot.ework:id/btn_signin is not visible... COMPLETED

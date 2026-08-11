@@ -1,0 +1,16 @@
+name: 'PT Mandiri Sinar 8546'
+email: 'admin@ptmandirisinar8546.co.id'
+phone: '85520387910'
+industry_type: 'Retail'
+company_type: 'Importer/Exporter'
+language: 'Indonesia'
+street_address: 'Jl. Gang Kendalsari No. 162'
+country: 'Indonesia'
+province: 'PAPUA'
+city: 'KOTA JAYAPURA'
+district: 'HERAM'
+sub_district: 'WAENA'
+postal_code: '99332'
+
+company_id: 5118550
+mongo_id: 6a7b3a9cb8f9ddcf240dcd54

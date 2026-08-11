@@ -1,0 +1,19 @@
+{
+  "source": "fallback",
+  "reason": "AI_API_KEY tidak diisi",
+  "data": {
+    "name": "PT Rejeki Nusantara 6011",
+    "email": "admin@ptrejekinusantara601.co.id",
+    "phone": "84961515963",
+    "industry_type": "Automotive",
+    "company_type": "Third-Party Logistics (3PL) Provider",
+    "language": "English",
+    "street_address": "Jl. Jalan Kapten Muslihat No. 181",
+    "country": "Indonesia",
+    "province": "GORONTALO",
+    "city": "KOTA GORONTALO",
+    "district": "SIPATANA",
+    "sub_district": "TAPA",
+    "postal_code": ""
+  }
+}

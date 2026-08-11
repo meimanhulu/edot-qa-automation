@@ -1,0 +1,128 @@
+Running on Pixel_7
+ > Flow create_customer
+Run shared/login.yaml...
+  Launch app "${EWORK_APP_ID}" with clear state... COMPLETED
+  Assert that id: id.edot.ework:id/tv_company_id is visible... COMPLETED
+  Tap on id: id.edot.ework:id/tv_company_id... COMPLETED
+  Input text ${EWORK_COMPANY_ID}... COMPLETED
+  Tap on id: id.edot.ework:id/tv_username... COMPLETED
+  Input text ${EWORK_USERNAME}... COMPLETED
+  Tap on id: id.edot.ework:id/tv_password... COMPLETED
+  Input text ${EWORK_PASSWORD}... COMPLETED
+  Hide Keyboard... COMPLETED
+  Tap on id: id.edot.ework:id/btn_signin... COMPLETED
+Run shared/login.yaml... COMPLETED
+Assert that "New Customer" is visible... COMPLETED
+Retry 3 times...
+  Tap on "New Customer"... COMPLETED
+  Assert that id: id.edot.ework:id/noo_label_add_new_cust is visible... COMPLETED
+Retry 3 times... COMPLETED
+Tap on id: id.edot.ework:id/noo_label_add_new_cust... COMPLETED
+Assert that id: id.edot.ework:id/noo_registration_input_outlet_name is visible... COMPLETED
+Tap on id: id.edot.ework:id/noo_registration_input_outlet_name... COMPLETED
+Input text ${CUSTOMER_NAME}... COMPLETED
+Assert that "${CUSTOMER_NAME}", id: id.edot.ework:id/noo_registration_input_outlet_name is visible... COMPLETED
+Tap on id: id.edot.ework:id/noo_registration_input_phone... COMPLETED
+Input text ${CUSTOMER_PHONE}... COMPLETED
+Assert that "${CUSTOMER_PHONE}", id: id.edot.ework:id/noo_registration_input_phone is visible... COMPLETED
+Tap on id: id.edot.ework:id/noo_registration_input_email... COMPLETED
+Input text ${CUSTOMER_EMAIL}... COMPLETED
+Assert that "${CUSTOMER_EMAIL}", id: id.edot.ework:id/noo_registration_input_email is visible... COMPLETED
+Hide Keyboard... COMPLETED
+Scrolling DOWN until id: id.edot.ework:id/noo_registration_input_contact_person is visible with speed 40, visibility percentage 40%, timeout 30000 ms, wait to settle 1500 ms, with centering enabled... COMPLETED
+Tap on id: id.edot.ework:id/noo_registration_input_contact_person... COMPLETED
+Input text ${CUSTOMER_CONTACT_PERSON}... COMPLETED
+Hide Keyboard... COMPLETED
+Assert that "${CUSTOMER_CONTACT_PERSON}", id: id.edot.ework:id/noo_registration_input_contact_person is visible... COMPLETED
+Scrolling DOWN until id: id.edot.ework:id/noo_registration_input_channel is visible with speed 40, visibility percentage 40%, timeout 30000 ms, wait to settle 1500 ms, with centering enabled... COMPLETED
+Tap on id: id.edot.ework:id/noo_registration_input_channel... COMPLETED
+Assert that "${CHANNEL_TYPE}" is visible... COMPLETED
+Tap on "${CHANNEL_TYPE}"... COMPLETED
+Assert that "${CHANNEL_TYPE}", id: id.edot.ework:id/noo_registration_input_channel is visible... COMPLETED
+Scrolling DOWN until id: id.edot.ework:id/noo_registration_input_outlet_type is visible with speed 40, visibility percentage 40%, timeout 30000 ms, wait to settle 1500 ms, with centering enabled... COMPLETED
+Tap on id: id.edot.ework:id/noo_registration_input_outlet_type... COMPLETED
+Assert that "${CUSTOMER_TYPE}" is visible... COMPLETED
+Tap on "${CUSTOMER_TYPE}"... COMPLETED
+Assert that "${CUSTOMER_TYPE}", id: id.edot.ework:id/noo_registration_input_outlet_type is visible... COMPLETED
+Scrolling DOWN until id: id.edot.ework:id/noo_registration_input_price_list is visible with speed 40, visibility percentage 40%, timeout 30000 ms, wait to settle 1500 ms, with centering enabled... COMPLETED
+Assert that "Default", id: id.edot.ework:id/noo_registration_input_price_list is visible... COMPLETED
+Scrolling DOWN until id: id.edot.ework:id/noo_registration_action_submit is visible with speed 40, visibility percentage 40%, timeout 30000 ms, wait to settle 1500 ms, with centering enabled... COMPLETED
+Assert that id: id.edot.ework:id/noo_registration_action_submit, enabled is visible... COMPLETED
+Tap on id: id.edot.ework:id/noo_registration_action_submit... COMPLETED
+Run steps/location.yaml...
+  Assert that id: id.edot.ework:id/noo_registration_input_address_type is visible... COMPLETED
+  Tap on id: id.edot.ework:id/noo_registration_input_address_type... COMPLETED
+  Assert that "${ADDRESS_TYPE}" is visible... COMPLETED
+  Tap on "${ADDRESS_TYPE}"... COMPLETED
+  Assert that "${ADDRESS_TYPE}", id: id.edot.ework:id/noo_registration_input_address_type is visible... COMPLETED
+  Scrolling DOWN until id: id.edot.ework:id/noo_registration_input_address is visible with speed 40, visibility percentage 40%, timeout 30000 ms, wait to settle 1500 ms, with centering enabled... COMPLETED
+  Tap on id: id.edot.ework:id/noo_registration_input_address... COMPLETED
+  Input text ${CUSTOMER_ADDRESS}... COMPLETED
+  Hide Keyboard... COMPLETED
+  Assert that "${CUSTOMER_ADDRESS}", id: id.edot.ework:id/noo_registration_input_address is visible... COMPLETED
+  Scrolling DOWN until id: id.edot.ework:id/edit_location_item_dropdown is visible with speed 40, visibility percentage 40%, timeout 30000 ms, wait to settle 1500 ms, with centering enabled... COMPLETED
+  Tap on id: id.edot.ework:id/edit_location_item_dropdown, Index: 0... COMPLETED
+  Assert that id: id.edot.ework:id/noo_location_option_item_title is visible... COMPLETED
+  Tap on id: id.edot.ework:id/noo_location_option_item_title, Index: 0... COMPLETED
+  Wait for animation to end within 3000 ms... COMPLETED
+  Run flow when id: id.edot.ework:id/noo_location_option_action_apply is visible...
+  Run flow when id: id.edot.ework:id/noo_location_option_action_apply is visible... SKIPPED
+  Assert that id: id.edot.ework:id/edit_location_item_dropdown is visible... COMPLETED
+  Tap on id: id.edot.ework:id/edit_location_item_dropdown, Index: 1... COMPLETED
+  Assert that id: id.edot.ework:id/noo_location_option_item_title is visible... COMPLETED
+  Tap on id: id.edot.ework:id/noo_location_option_item_title, Index: 0... COMPLETED
+  Wait for animation to end within 3000 ms... COMPLETED
+  Run flow when id: id.edot.ework:id/noo_location_option_action_apply is visible...
+  Run flow when id: id.edot.ework:id/noo_location_option_action_apply is visible... SKIPPED
+  Assert that id: id.edot.ework:id/edit_location_item_dropdown is visible... COMPLETED
+  Tap on id: id.edot.ework:id/edit_location_item_dropdown, Index: 2... COMPLETED
+  Assert that id: id.edot.ework:id/noo_location_option_item_title is visible... COMPLETED
+  Tap on id: id.edot.ework:id/noo_location_option_item_title, Index: 0... COMPLETED
+  Wait for animation to end within 3000 ms... COMPLETED
+  Run flow when id: id.edot.ework:id/noo_location_option_action_apply is visible...
+  Run flow when id: id.edot.ework:id/noo_location_option_action_apply is visible... SKIPPED
+  Assert that id: id.edot.ework:id/edit_location_item_dropdown is visible... COMPLETED
+  Tap on id: id.edot.ework:id/edit_location_item_dropdown, Index: 3... COMPLETED
+  Assert that id: id.edot.ework:id/noo_location_option_item_title is visible... COMPLETED
+  Tap on id: id.edot.ework:id/noo_location_option_item_title, Index: 0... COMPLETED
+  Wait for animation to end within 3000 ms... COMPLETED
+  Run flow when id: id.edot.ework:id/noo_location_option_action_apply is visible...
+  Run flow when id: id.edot.ework:id/noo_location_option_action_apply is visible... SKIPPED
+  Scrolling DOWN until id: id.edot.ework:id/noo_registration_action_continue is visible with speed 40, visibility percentage 40%, timeout 30000 ms, wait to settle 1500 ms, with centering enabled... COMPLETED
+  Assert that id: id.edot.ework:id/noo_registration_action_continue, enabled is visible... COMPLETED
+  Tap on id: id.edot.ework:id/noo_registration_action_continue... COMPLETED
+Run steps/location.yaml... COMPLETED
+Run steps/documents.yaml...
+  Assert that id: id.edot.ework:id/update_info_item_input_value is visible... COMPLETED
+  Tap on id: id.edot.ework:id/update_info_item_input_value... COMPLETED
+  Input text ${KTP_NUMBER}... COMPLETED
+  Hide Keyboard... COMPLETED
+  Assert that "${KTP_NUMBER}", id: id.edot.ework:id/update_info_item_input_value is visible... COMPLETED
+  Scrolling DOWN until id: id.edot.ework:id/btn_upload is visible with speed 40, visibility percentage 40%, timeout 30000 ms, wait to settle 1500 ms, with centering enabled... COMPLETED
+  Tap on id: id.edot.ework:id/btn_upload... COMPLETED
+  Assert that id: id.edot.ework:id/btn_capture is visible... COMPLETED
+  Tap on id: id.edot.ework:id/btn_capture... COMPLETED
+  Assert that id: id.edot.ework:id/btn_capture is not visible... COMPLETED
+  Assert that id: id.edot.ework:id/noo_registration_doc_action_continue, enabled is visible... COMPLETED
+  Tap on id: id.edot.ework:id/noo_registration_doc_action_continue... COMPLETED
+Run steps/documents.yaml... COMPLETED
+Run steps/signature.yaml...
+  Assert that id: id.edot.ework:id/signature_view is visible... COMPLETED
+  Assert that "Approval Signature" is visible... COMPLETED
+  Swiping in DOWN direction on id: id.edot.ework:id/signature_view... COMPLETED
+  Swiping in RIGHT direction on id: id.edot.ework:id/signature_view... COMPLETED
+  Swiping in DOWN direction on id: id.edot.ework:id/signature_view... COMPLETED
+  Wait for animation to end within 2000 ms... COMPLETED
+  Assert that id: id.edot.ework:id/update_info_action_repeat_signature is visible... COMPLETED
+  Assert that id: id.edot.ework:id/update_info_action_submit, enabled is visible... COMPLETED
+  Tap on id: id.edot.ework:id/update_info_action_submit... COMPLETED
+  Assert that id: id.edot.ework:id/dialog_title is visible... COMPLETED
+  Assert that "Are you sure to save this customer data?" is visible... COMPLETED
+  Tap on id: id.edot.ework:id/btn_positive... COMPLETED
+  Assert that id: id.edot.ework:id/btn_success_continue is visible... COMPLETED
+  Assert that "Data Saved Successfully" is visible... COMPLETED
+  Tap on id: id.edot.ework:id/btn_success_continue... COMPLETED
+Run steps/signature.yaml... COMPLETED
+Assert that id: id.edot.ework:id/noo_label_add_new_cust is visible... COMPLETED
+Scrolling DOWN until "${CUSTOMER_NAME}" is visible with speed 40, visibility percentage 40%, timeout 60000 ms, wait to settle 1500 ms, with centering enabled... COMPLETED
+Assert that "${CUSTOMER_NAME}" is visible... COMPLETED

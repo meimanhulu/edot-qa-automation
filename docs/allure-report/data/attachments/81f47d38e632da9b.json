@@ -1,0 +1,19 @@
+{
+  "source": "fallback",
+  "reason": "AI_API_KEY tidak diisi",
+  "data": {
+    "name": "PT Mandiri Rejeki 9856",
+    "email": "admin@ptmandirirejeki9856.co.id",
+    "phone": "84746113444",
+    "industry_type": "Agriculture",
+    "company_type": "Dropshipper",
+    "language": "Indonesia",
+    "street_address": "Jl. Jl. Veteran No. 139",
+    "country": "Indonesia",
+    "province": "GORONTALO",
+    "city": "KOTA GORONTALO",
+    "district": "KOTA TENGAH",
+    "sub_district": "DULALOWO TIMUR",
+    "postal_code": ""
+  }
+}

@@ -1,50 +1,11 @@
 "DESCRIPTION","DURATION IN MS","NAME","PARENT SUITE","START TIME","STATUS","STOP TIME","SUB SUITE","SUITE","TEST CLASS","TEST METHOD"
 "
-Step 3 menyatakan dirinya opsional (""If left unfilled, a default branch
-will be created""), tetapi Branch Name diberi tanda wajib (*) — sebuah
-kontradiksi di UI.
-
-Test ini memverifikasi satu hal yang pasti: Register terkunci sebelum
-checkbox persetujuan dicentang.
-
-Sengaja BERHENTI sebelum menekan Register — test ini tidak membuat data.
-","5212","TC-WEB-011 Register requires agreement checkbox","web.tests","2026-08-10","passed","2026-08-10","","test_create_company","",""
-"
-Setiap field wajib yang kosong harus menahan tombol Next.
-
-Parametrize dipakai supaya tiap field jadi baris terpisah di Allure —
-kalau digabung dalam satu test, kegagalan pada field pertama akan
-menyembunyikan tiga field berikutnya.
-
-Aplikasi memakai tombol disabled sebagai mekanisme validasi, bukan pesan
-error. Karena itu yang di-assert adalah status tombol, bukan teks error
-yang memang tidak muncul.
-","5414","TC-WEB-012 Required field validation on Step 1","web.tests","2026-08-10","passed","2026-08-10","","test_create_company","",""
-"
-Edge case paling berisiko pada form ini.
-
-City yang tertinggal saat Province diubah akan membuat alamat yang
-mustahil secara geografis ikut tersubmit — mis. Province ""JAWA BARAT""
-dengan City ""KOTA GORONTALO"". Happy path tidak pernah menyentuh ini
-karena hanya memilih ke bawah, tidak pernah mengubah parent.
-","5936","TC-WEB-006 Changing Province resets dependent cascade fields","web.tests","2026-08-10","passed","2026-08-10","","test_create_company","",""
-"
 Login sudah terjadi di fixture session (storage_state), jadi test ini
 memverifikasi HASILNYA — bukan mengulang prosesnya.
 
 Halaman tetap perlu dibuka: storage_state memulihkan sesi, tetapi
 context baru selalu mulai dari about:blank.
-","890","TC-WEB-001 Login with valid credentials","web.tests","2026-08-10","passed","2026-08-10","","test_login","",""
-"
-Edge case: input hasil copy-paste sering membawa spasi tak terlihat.
-
-Temuan: aplikasi TIDAK men-trim input, sehingga tombol Log In tetap
-disabled untuk email ber-spasi. Test ini mendokumentasikan perilaku
-sebenarnya, bukan memaksanya hijau.
-
-Kalau kelak aplikasi menormalisasi input, test ini akan gagal — dan itu
-justru benar: perubahan perilaku harus terlihat, bukan lolos diam-diam.
-","2427","TC-WEB-004 Email with surrounding whitespace and different case","web.tests","2026-08-10","passed","2026-08-10","","test_login","",""
+","1951","TC-WEB-001 Login with valid credentials","web.tests","2026-08-11","passed","2026-08-11","","test_login","",""
 "
 Setiap field wajib yang kosong harus menahan tombol Next.
 
@@ -55,65 +16,14 @@ menyembunyikan tiga field berikutnya.
 Aplikasi memakai tombol disabled sebagai mekanisme validasi, bukan pesan
 error. Karena itu yang di-assert adalah status tombol, bukan teks error
 yang memang tidak muncul.
-","5937","TC-WEB-012 Required field validation on Step 1","web.tests","2026-08-10","passed","2026-08-10","","test_create_company","",""
+","10691","TC-WEB-012 Required field validation on Step 1","web.tests","2026-08-11","passed","2026-08-11","","test_create_company","",""
 "
-Setiap field wajib yang kosong harus menahan tombol Next.
+Aplikasi men-disable tombol Log In selama username kosong — itu perilaku
+yang benar, dan bentuk validasi yang dipakai Account Center.
 
-Parametrize dipakai supaya tiap field jadi baris terpisah di Allure —
-kalau digabung dalam satu test, kegagalan pada field pertama akan
-menyembunyikan tiga field berikutnya.
-
-Aplikasi memakai tombol disabled sebagai mekanisme validasi, bukan pesan
-error. Karena itu yang di-assert adalah status tombol, bukan teks error
-yang memang tidak muncul.
-","5049","TC-WEB-012 Required field validation on Step 1","web.tests","2026-08-10","passed","2026-08-10","","test_create_company","",""
-"
-Perilaku inti: Next terkunci selama form belum lengkap, dan terbuka
-setelah seluruh field wajib terisi.
-
-Aplikasi memakai tombol disabled sebagai mekanisme validasi, bukan pesan
-error — jadi status tombol inilah yang diverifikasi.
-","5633","TC-WEB-007a Next stays disabled until Step 1 is complete","web.tests","2026-08-10","passed","2026-08-10","","test_create_company","",""
-"","11598","TC-WEB-013 Verify company detail matches input field by field","web.tests","2026-08-10","passed","2026-08-10","","test_verify_detail","",""
-"
-Setiap field wajib yang kosong harus menahan tombol Next.
-
-Parametrize dipakai supaya tiap field jadi baris terpisah di Allure —
-kalau digabung dalam satu test, kegagalan pada field pertama akan
-menyembunyikan tiga field berikutnya.
-
-Aplikasi memakai tombol disabled sebagai mekanisme validasi, bukan pesan
-error. Karena itu yang di-assert adalah status tombol, bukan teks error
-yang memang tidak muncul.
-","5213","TC-WEB-012 Required field validation on Step 1","web.tests","2026-08-10","passed","2026-08-10","","test_create_company","",""
-"
-Sengaja TIDAK memakai fixture created_company: fixture itu menghapus
-company di teardown, sedangkan penghapusan itulah yang sedang diuji.
-Memakai fixture berarti menguji cleanup fixture, bukan fitur delete.
-","33439","TC-WEB-015 Delete company and confirm it is gone","web.tests","2026-08-10","passed","2026-08-10","","test_cleanup","",""
-"
-Membuktikan temuan yang membatalkan TC-WEB-006.
-
-Brief menggambarkan cascade Country > Province > City > District > Zone >
-Postal Code sebagai field yang saling bergantung dan bisa dipilih. Di
-aplikasi sebenarnya, seluruhnya terkunci di halaman detail dan hanya
-Country yang muncul di wizard.
-
-Test ini merekam kenyataan itu sebagai fakta yang terverifikasi, bukan
-sebagai asumsi di dokumen. Kalau kelak aplikasi membukanya, test ini gagal
-dan memberi tahu bahwa TC-WEB-006 sudah bisa diuji.
-","11932","TC-WEB-013c Cascade fields are read-only","web.tests","2026-08-10","passed","2026-08-10","","test_verify_detail","",""
-"
-Pakai anon_page: test ini butuh keadaan LOGOUT. Dengan fixture `page`
-yang sudah ter-autentikasi, test ini tidak menguji apa pun.
-","5939","TC-WEB-002 Login rejected with invalid password","web.tests","2026-08-10","passed","2026-08-10","","test_login","",""
-"
-Company ID dihasilkan sistem, bukan diinput user.
-
-Dua hal diverifikasi:
-  1. nilainya ada dan berupa angka — dipakai skenario mobile untuk login
-  2. field-nya read-only — ID tidak boleh bisa diubah dari UI
-","11365","TC-WEB-013b Company ID is present and read-only","web.tests","2026-08-10","passed","2026-08-10","","test_verify_detail","",""
+Karena itu test ini memverifikasi STATUS TOMBOL, bukan mengklik lalu
+mengharap pesan error yang memang tidak akan pernah muncul.
+","4594","TC-WEB-003 Log In button disabled when username is empty","web.tests","2026-08-11","passed","2026-08-11","","test_login","",""
 "
 Edge case: validasi harus bereaksi terhadap PENGHAPUSAN nilai, bukan
 hanya terhadap pengisian pertama.
@@ -125,7 +35,27 @@ ikut tersubmit.
 Dipisah dari TC-WEB-007a supaya kegagalan di sini tidak menutupi
 perilaku inti yang sudah benar. Kalau test ini merah, itu temuan tentang
 aplikasi — bukan cacat skrip.
-","5564","TC-WEB-007b Validation reacts when a required field is cleared","web.tests","2026-08-10","passed","2026-08-10","","test_create_company","",""
+","8479","TC-WEB-007b Validation reacts when a required field is cleared","web.tests","2026-08-11","passed","2026-08-11","","test_create_company","",""
+"
+Step 3 menyatakan dirinya opsional (""If left unfilled, a default branch
+will be created""), tetapi Branch Name diberi tanda wajib (*) — sebuah
+kontradiksi di UI.
+
+Test ini memverifikasi satu hal yang pasti: Register terkunci sebelum
+checkbox persetujuan dicentang.
+
+Sengaja BERHENTI sebelum menekan Register — test ini tidak membuat data.
+","14967","TC-WEB-011 Register requires agreement checkbox","web.tests","2026-08-11","passed","2026-08-11","","test_create_company","",""
+"
+Edge case: input hasil copy-paste sering membawa spasi tak terlihat.
+
+Temuan: aplikasi TIDAK men-trim input, sehingga tombol Log In tetap
+disabled untuk email ber-spasi. Test ini mendokumentasikan perilaku
+sebenarnya, bukan memaksanya hijau.
+
+Kalau kelak aplikasi menormalisasi input, test ini akan gagal — dan itu
+justru benar: perubahan perilaku harus terlihat, bukan lolos diam-diam.
+","3543","TC-WEB-004 Email with surrounding whitespace and different case","web.tests","2026-08-11","passed","2026-08-11","","test_login","",""
 "
 Edge case: input hasil copy-paste sering membawa spasi tak terlihat.
 Input tak ter-trim menciptakan record duplikat semu dan merusak pencarian
@@ -133,14 +63,50 @@ dengan pencocokan persis.
 
 Test ini membuat companynya sendiri (bukan lewat fixture) karena datanya
 sengaja dimodifikasi — dan menghapusnya di blok finally.
-","43206","TC-WEB-008 Company name stored trimmed","web.tests","2026-08-10","failed","2026-08-10","","test_create_company","",""
+","34395","TC-WEB-008 Company name stored trimmed","web.tests","2026-08-11","failed","2026-08-11","","test_create_company","",""
 "
-Aplikasi men-disable tombol Log In selama username kosong — itu perilaku
-yang benar, dan bentuk validasi yang dipakai Account Center.
+Setiap field wajib yang kosong harus menahan tombol Next.
 
-Karena itu test ini memverifikasi STATUS TOMBOL, bukan mengklik lalu
-mengharap pesan error yang memang tidak akan pernah muncul.
-","2028","TC-WEB-003 Log In button disabled when username is empty","web.tests","2026-08-10","passed","2026-08-10","","test_login","",""
+Parametrize dipakai supaya tiap field jadi baris terpisah di Allure —
+kalau digabung dalam satu test, kegagalan pada field pertama akan
+menyembunyikan tiga field berikutnya.
+
+Aplikasi memakai tombol disabled sebagai mekanisme validasi, bukan pesan
+error. Karena itu yang di-assert adalah status tombol, bukan teks error
+yang memang tidak muncul.
+","7597","TC-WEB-012 Required field validation on Step 1","web.tests","2026-08-11","passed","2026-08-11","","test_create_company","",""
+"
+Pakai anon_page: test ini butuh keadaan LOGOUT. Dengan fixture `page`
+yang sudah ter-autentikasi, test ini tidak menguji apa pun.
+","10081","TC-WEB-002 Login rejected with invalid password","web.tests","2026-08-11","passed","2026-08-11","","test_login","",""
+"
+Sengaja TIDAK memakai fixture created_company: fixture itu menghapus
+company di teardown, sedangkan penghapusan itulah yang sedang diuji.
+Memakai fixture berarti menguji cleanup fixture, bukan fitur delete.
+","36020","TC-WEB-015 Delete company and confirm it is gone","web.tests","2026-08-11","passed","2026-08-11","","test_cleanup","",""
+"
+Setiap field wajib yang kosong harus menahan tombol Next.
+
+Parametrize dipakai supaya tiap field jadi baris terpisah di Allure —
+kalau digabung dalam satu test, kegagalan pada field pertama akan
+menyembunyikan tiga field berikutnya.
+
+Aplikasi memakai tombol disabled sebagai mekanisme validasi, bukan pesan
+error. Karena itu yang di-assert adalah status tombol, bukan teks error
+yang memang tidak muncul.
+","7633","TC-WEB-012 Required field validation on Step 1","web.tests","2026-08-11","passed","2026-08-11","","test_create_company","",""
+"
+Membuktikan temuan yang membatalkan TC-WEB-006.
+
+Brief menggambarkan cascade Country > Province > City > District > Zone >
+Postal Code sebagai field yang saling bergantung dan bisa dipilih. Di
+aplikasi sebenarnya, seluruhnya terkunci di halaman detail dan hanya
+Country yang muncul di wizard.
+
+Test ini merekam kenyataan itu sebagai fakta yang terverifikasi, bukan
+sebagai asumsi di dokumen. Kalau kelak aplikasi membukanya, test ini gagal
+dan memberi tahu bahwa TC-WEB-006 sudah bisa diuji.
+","12303","TC-WEB-013c Cascade fields are read-only","web.tests","2026-08-11","passed","2026-08-11","","test_verify_detail","",""
 "
 Halaman detail seharusnya menampilkan data pada pembukaan PERTAMA.
 
@@ -154,8 +120,61 @@ dapat memverifikasi kecocokan data tanpa terhalang, sementara cacatnya
 tetap terlihat dan tidak hilang di balik reload otomatis.
 
 Bila kelak aplikasi diperbaiki, test ini menjadi hijau dengan sendirinya.
-","11792","TC-WEB-013d Detail page loads data on first open","web.tests","2026-08-10","failed","2026-08-10","","test_verify_detail","",""
+","12106","TC-WEB-013d Detail page loads data on first open","web.tests","2026-08-11","failed","2026-08-11","","test_verify_detail","",""
+"
+Perilaku inti: Next terkunci selama form belum lengkap, dan terbuka
+setelah seluruh field wajib terisi.
+
+Aplikasi memakai tombol disabled sebagai mekanisme validasi, bukan pesan
+error — jadi status tombol inilah yang diverifikasi.
+","6827","TC-WEB-007a Next stays disabled until Step 1 is complete","web.tests","2026-08-11","passed","2026-08-11","","test_create_company","",""
 "
 Company dibuat oleh fixture created_company — yang sekaligus menghapusnya
 di teardown. Test ini memverifikasi hasilnya.
-","3480","TC-WEB-005 Create company with valid data","web.tests","2026-08-10","passed","2026-08-10","","test_create_company","",""
+","2569","TC-WEB-005 Create company with valid data","web.tests","2026-08-11","passed","2026-08-11","","test_create_company","",""
+"
+Data customer berasal dari modul AI (Phase 3A) dan dilewatkan ke Maestro
+lewat flag -e. Tidak ada nilai yang di-hardcode di YAML - brief melarangnya.
+
+Catatan untuk reviewer: assertion Tier 2 berada di dalam YAML, bukan di
+Python. Maestro yang memegang kendali device; Python hanya pemanggilnya.
+Yang diverifikasi di sana adalah nilai yang BENAR-BENAR masuk ke field,
+dibaca balik dengan assertVisible bertext persis - bukan sekadar
+""flow selesai tanpa error"".
+
+Email disertakan meski field-nya opsional (tanpa tanda *), supaya seluruh
+field terisi dan verifikasi mencakup lebih banyak permukaan. Domainnya
+gmail.com - domain kustom berisiko ditolak validasi aplikasi.
+
+Seluruh nilai acak per run: nama outlet, nomor telepon, email, dan nama
+contact person. Test yang selalu memakai nilai sama bisa lolos karena
+record lama, bukan karena input baru benar-benar diterima.
+","265297","TC-MOB-002 Create customer and verify entered values","mobile.tests","2026-08-11","passed","2026-08-11","","test_create_customer","",""
+"
+Edge case paling berisiko pada form ini.
+
+City yang tertinggal saat Province diubah akan membuat alamat yang
+mustahil secara geografis ikut tersubmit — mis. Province ""JAWA BARAT""
+dengan City ""KOTA GORONTALO"". Happy path tidak pernah menyentuh ini
+karena hanya memilih ke bawah, tidak pernah mengubah parent.
+","8940","TC-WEB-006 Changing Province resets dependent cascade fields","web.tests","2026-08-11","passed","2026-08-11","","test_create_company","",""
+"
+Setiap field wajib yang kosong harus menahan tombol Next.
+
+Parametrize dipakai supaya tiap field jadi baris terpisah di Allure —
+kalau digabung dalam satu test, kegagalan pada field pertama akan
+menyembunyikan tiga field berikutnya.
+
+Aplikasi memakai tombol disabled sebagai mekanisme validasi, bukan pesan
+error. Karena itu yang di-assert adalah status tombol, bukan teks error
+yang memang tidak muncul.
+","6279","TC-WEB-012 Required field validation on Step 1","web.tests","2026-08-11","passed","2026-08-11","","test_create_company","",""
+"","64668","TC-MOB-001 Login to eWork SFA","mobile.tests","2026-08-11","passed","2026-08-11","","test_mobile_login","",""
+"
+Company ID dihasilkan sistem, bukan diinput user.
+
+Dua hal diverifikasi:
+  1. nilainya ada dan berupa angka — dipakai skenario mobile untuk login
+  2. field-nya read-only — ID tidak boleh bisa diubah dari UI
+","12123","TC-WEB-013b Company ID is present and read-only","web.tests","2026-08-11","passed","2026-08-11","","test_verify_detail","",""
+"","12518","TC-WEB-013 Verify company detail matches input field by field","web.tests","2026-08-11","passed","2026-08-11","","test_verify_detail","",""

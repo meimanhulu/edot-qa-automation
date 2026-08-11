@@ -1,0 +1,16 @@
+name: 'PT Rejeki Nusantara 6011'
+email: 'admin@ptrejekinusantara601.co.id'
+phone: '84961515963'
+industry_type: 'Retail'
+company_type: 'Importer/Exporter'
+language: 'Indonesia'
+street_address: 'Jl. Jalan Kapten Muslihat No. 181'
+country: 'Indonesia'
+province: 'PAPUA'
+city: 'KOTA JAYAPURA'
+district: 'HERAM'
+sub_district: 'WAENA'
+postal_code: '99332'
+
+company_id: 5118546
+mongo_id: 6a7b39eab8f9ddcf240dc9b4

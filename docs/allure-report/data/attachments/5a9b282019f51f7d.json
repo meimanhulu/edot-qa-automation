@@ -1,0 +1,19 @@
+{
+  "source": "fallback",
+  "reason": "AI_API_KEY tidak diisi",
+  "data": {
+    "name": "PT Rejeki Sinar 4742",
+    "email": "admin@ptrejekisinar4742.co.id",
+    "phone": "86220811950",
+    "industry_type": "Manufacturing",
+    "company_type": "Marketplace",
+    "language": "English",
+    "street_address": "Jl. Jl. Cempaka No. 54",
+    "country": "Indonesia",
+    "province": "GORONTALO",
+    "city": "KOTA GORONTALO",
+    "district": "SIPATANA",
+    "sub_district": "TAPA",
+    "postal_code": ""
+  }
+}

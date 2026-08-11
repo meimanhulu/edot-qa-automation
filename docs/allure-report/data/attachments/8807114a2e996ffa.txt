@@ -1,0 +1,2 @@
+input : '   PT Nusantara Jaya 1062   '
+stored: '   PT Nusantara Jaya 1062   '

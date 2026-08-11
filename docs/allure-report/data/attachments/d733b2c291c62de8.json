@@ -1,0 +1,19 @@
+{
+  "source": "fallback",
+  "reason": "AI_API_KEY tidak diisi",
+  "data": {
+    "name": "PT Sinar Berkah 6480",
+    "email": "admin@ptsinarberkah6480.co.id",
+    "phone": "87860085527",
+    "industry_type": "Construction",
+    "company_type": "Importer/Exporter",
+    "language": "English",
+    "street_address": "Jl. Jalan Cihampelas No. 113",
+    "country": "Indonesia",
+    "province": "GORONTALO",
+    "city": "KOTA GORONTALO",
+    "district": "SIPATANA",
+    "sub_district": "MOLOSIFAT U",
+    "postal_code": ""
+  }
+}

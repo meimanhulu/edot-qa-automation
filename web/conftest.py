@@ -10,7 +10,15 @@ from pathlib import Path
 
 import allure
 import pytest
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import expect, sync_playwright
+
+# Timeout bawaan expect() adalah 5 detik - terlalu pendek untuk aplikasi ini.
+# Beberapa layar menampilkan "Please wait..." lebih lama dari itu, dan
+# assertion gagal padahal elemennya muncul sesaat kemudian.
+#
+# 15 detik dipilih sebagai kompromi: cukup untuk memuat lambat, tetapi tidak
+# selama itu sehingga kegagalan sungguhan tetap terlihat cepat.
+expect.set_options(timeout=15_000)
 
 from web.pages.companies_page import CompaniesPage
 from web.pages.company_detail_page import CompanyDetailPage

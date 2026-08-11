@@ -1,0 +1,19 @@
+{
+  "source": "fallback",
+  "reason": "AI_API_KEY tidak diisi",
+  "data": {
+    "name": "PT Berkah Sinar 9503",
+    "email": "admin@ptberkahsinar9503.co.id",
+    "phone": "87182160664",
+    "industry_type": "Entertainment and Media",
+    "company_type": "Franchisee/Franchisor",
+    "language": "Indonesia",
+    "street_address": "Jl. Jalan Pasteur No. 127",
+    "country": "Indonesia",
+    "province": "GORONTALO",
+    "city": "KOTA GORONTALO",
+    "district": "SIPATANA",
+    "sub_district": "TAPA",
+    "postal_code": ""
+  }
+}

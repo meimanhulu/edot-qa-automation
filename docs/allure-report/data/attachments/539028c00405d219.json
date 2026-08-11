@@ -1,0 +1,19 @@
+{
+  "source": "fallback",
+  "reason": "AI_API_KEY tidak diisi",
+  "data": {
+    "name": "PT Mandiri Nusantara 3503",
+    "email": "admin@ptmandirinusantara35.co.id",
+    "phone": "84804016549",
+    "industry_type": "Agriculture",
+    "company_type": "Agent",
+    "language": "English",
+    "street_address": "Jl. Jl. Sentot Alibasa No. 68",
+    "country": "Indonesia",
+    "province": "GORONTALO",
+    "city": "KOTA GORONTALO",
+    "district": "SIPATANA",
+    "sub_district": "TAPA",
+    "postal_code": ""
+  }
+}

@@ -11,7 +11,7 @@ dengan AI di dalam suite — generasi data test dan triage kegagalan.
 
 | Suite | Hasil |
 |---|---|
-| **Web** (Playwright) | 15 Passed · 4 Failed  |
+| **Web** (Playwright) | 17 Passed · 2 Failed |
 | **Mobile** (Maestro) | 2 Passed  |
 
 | Evidence | Lokasi |
@@ -152,9 +152,9 @@ docs/                    walkthrough kode, panduan Maestro, bukti eksekusi
 | Company ID ada dan read-only | 2 | ✅ |
 | Cascade read-only di halaman detail | 1 | ✅ |
 | Delete + verifikasi record hilang | 2 | ✅ |
-| **Detail page memuat data tanpa reload** | 1 | ❌ **cacat produk** |
-| Company name tersimpan ter-trim | 2 | ⚠️ flaky |
-| Delete company (dalam suite penuh) | 2 | ⚠️ flaky |
+| | **Detail page memuat data tanpa reload** | 1 | ⚠️ **intermiten — cacat produk** |
+| Company name tersimpan ter-trim | 2 | ❌ **cacat produk** |
+| Delete company | 2 | ✅ |
 
 ### Mobile — eWork SFA
 
@@ -191,25 +191,47 @@ bukan karena input baru benar-benar diterima.
 
 ## Cacat produk yang ditemukan
 
-### 1. Halaman detail company tidak memuat data pada pembukaan pertama
+### 1. Nama company disimpan tanpa dipangkas spasi
+
+**Test:** `TC-WEB-008` — gagal konsisten.
+
+Nama yang diinput dengan spasi di depan dan belakang tersimpan apa adanya:
+
+```
+input  : '   PT Nusantara Jaya 1062   '
+stored : '   PT Nusantara Jaya 1062   '
+```
+
+Di layar keduanya tampil identik, tetapi tersimpan sebagai record berbeda.
+Akibatnya pencarian dengan pencocokan persis meleset, dan dua company yang
+terlihat sama bisa berdampingan tanpa pengguna menyadarinya.
+
+Cacat ini hanya terlihat karena asersinya memakai `==`, bukan `in`.
+Perbandingan parsial justru akan meloloskannya — `'PT Nusantara Jaya 1062'`
+memang terkandung di dalam `'   PT Nusantara Jaya 1062   '`.
+
+### 2. Halaman detail company tidak memuat data pada pembukaan pertama
 
 **Test:** `TC-WEB-013d` — gagal secara sengaja selama cacatnya ada.
 
-Setelah company dibuat, membukanya lewat Companies → Manage menampilkan form
-**kosong seluruhnya**: Company Name kosong, Company ID kosong, seluruh dropdown
-masih `Choose ...`. Data baru muncul setelah halaman dimuat ulang, tanpa
-petunjuk apa pun bagi pengguna.
+Setelah company dibuat, membukanya lewat Companies → Manage **kadang**
+menampilkan form kosong seluruhnya: Company Name kosong, Company ID kosong,
+seluruh dropdown masih `Choose ...`. Data baru muncul setelah halaman dimuat
+ulang, tanpa petunjuk apa pun bagi pengguna.
+
+Perilakunya **intermiten**, bukan konsisten — pada sebagian run halaman termuat
+normal pada pembukaan pertama. Karena itu `TC-WEB-013d` kadang lolos dan kadang
+gagal, dan justru itulah nilainya: ia merekam frekuensi kemunculannya alih-alih
+mengklaim sesuatu yang lebih pasti daripada buktinya.
 
 Suite melakukan reload otomatis agar verifikasi Tier 2 tetap berjalan. Reload
 itu **dicatat, tidak disembunyikan** — lampiran Allure bernama
-*"TEMUAN: detail page perlu reload"* muncul tiap kali reload dibutuhkan, dan
-`TC-WEB-013d` memastikan cacatnya tetap terlihat. Bila aplikasi diperbaiki,
-test itu menjadi hijau dengan sendirinya.
+*"TEMUAN: detail page perlu reload"* muncul tiap kali reload dibutuhkan.
 
 Cacat ini kemungkinan besar terlewat oleh pengujian manual: pengguna biasanya
 tidak membuka halaman detail sedetik setelah membuat company.
 
-### 2. Nomor telepon salah format ditolak tanpa pesan
+### 3. Nomor telepon salah format ditolak tanpa pesan
 
 Field Phone menampilkan `+62` sebagai prefix terpisah, sehingga hanya menerima
 nomor lokal diawali `8`. Format `021...`, `+62...`, atau berawalan `0` membuat
@@ -218,13 +240,24 @@ tombol Next **terkunci tanpa pesan error apa pun**.
 Ditangkap oleh schema validation di `ai/schemas.py` supaya kegagalan menyebut
 penyebab sebenarnya, bukan berupa timeout yang membingungkan.
 
-### 3. Navigasi mobile "New Customer" tidak konsisten
+### 4. Waktu respons eSuite tidak konsisten
+
+Sebagian navigasi selesai dalam hitungan detik, sebagian melewati 30 detik dan
+menampilkan `"Please wait..."` berkepanjangan. Test yang gagal karena ini
+berganti-ganti tiap run — ciri lingkungan yang lambat, bukan cacat pada satu
+halaman tertentu.
+
+Suite menaikkan timeout navigasi ke 60 detik dan `expect()` ke 15 detik agar
+kegagalan yang tersisa benar-benar berasal dari perilaku aplikasi. Bagi
+pengguna, keterlambatan seperti ini terasa seperti aplikasi yang menggantung.
+
+### 5. Navigasi mobile "New Customer" tidak konsisten
 
 Mengetuk menu New Customer di dashboard kadang membuka daftar customer, kadang
 tetap di dashboard tanpa pesan apa pun. Dibungkus `retry` di YAML — ditangani
 tanpa melemahkan asersi, karena yang diperiksa tetap kehadiran elemen tujuan.
 
-### 4. Aksesibilitas (web)
+### 6. Aksesibilitas (web)
 
 - Seluruh combobox tanpa `aria-label`, `aria-labelledby`, maupun `title` —
   pengguna screen reader tidak mendapat informasi apa pun tentang fungsi
@@ -233,11 +266,14 @@ tanpa melemahkan asersi, karena yang diperiksa tetap kehadiran elemen tujuan.
   masih memegang focus. Peringatan Chrome: *"Blocked aria-hidden on an element
   because its descendant retained focus"*
 
-### 5. Usability daftar company (web)
+### 7. Usability daftar company (web)
 
 Empat hal yang saling memperburuk: **tanpa pagination** (470+ company dalam satu
 halaman), **render bertahap** (kartu muncul hanya saat digulir), **company baru
 di paling bawah**, dan **tanpa kolom pencarian**.
+
+Akibatnya pengguna harus menggulir melewati ratusan kartu untuk melihat company
+yang baru saja ia buat.
 
 ---
 

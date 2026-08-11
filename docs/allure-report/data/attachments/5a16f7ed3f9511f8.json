@@ -1,0 +1,19 @@
+{
+  "source": "fallback",
+  "reason": "AI_API_KEY tidak diisi",
+  "data": {
+    "name": "CV Jaya Berkah 1211",
+    "email": "admin@cvjayaberkah1211.co.id",
+    "phone": "85830607809",
+    "industry_type": "Energy",
+    "company_type": "Service",
+    "language": "Indonesia",
+    "street_address": "Jl. Gang Cempaka No. 148",
+    "country": "Indonesia",
+    "province": "GORONTALO",
+    "city": "KOTA GORONTALO",
+    "district": "SIPATANA",
+    "sub_district": "MOLOSIFAT U",
+    "postal_code": ""
+  }
+}

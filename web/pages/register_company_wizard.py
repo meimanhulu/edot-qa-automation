@@ -191,16 +191,45 @@ class RegisterCompanyWizard(BasePage):
         trigger = self._combobox(key)
         trigger.click()
 
-        # Listbox Radix dirender di luar tombolnya (portal), jadi dicari
-        # dari page, bukan dari trigger.
-        listbox = self.page.get_by_role("listbox")
-        expect(listbox).to_be_visible()
+        # `.last` dipakai, bukan get_by_role("listbox") polos.
+        #
+        # Radix kadang menyisakan listbox sebelumnya di DOM sesaat setelah
+        # ditutup. Dengan locator polos, dua listbox memicu strict mode
+        # violation dan penantiannya menggantung. `.last` selalu menunjuk
+        # listbox yang paling baru dibuka.
+        listbox = self.page.get_by_role("listbox").last
+        expect(listbox).to_be_visible(timeout=15000)
 
-        listbox.get_by_role("option", name=value, exact=True).click()
+        # Dropdown cascade punya kotak Search. Untuk daftar panjang (Province
+        # punya puluhan opsi), opsi yang dicari mungkin belum ter-render
+        # sampai difilter. Mengetik lebih dulu membuatnya pasti terlihat.
+        search = listbox.get_by_placeholder("Search")
+        if search.count() > 0:
+            search.fill(value)
 
-        # Tunggu listbox tertutup sebelum lanjut ke field berikutnya.
-        # Tanpa ini, klik berikutnya bisa mengenai overlay yang masih terbuka.
-        expect(listbox).not_to_be_visible()
+        option = listbox.get_by_text(value, exact=True)
+
+        # Gagal CEPAT dengan pesan yang menyebut penyebabnya.
+        #
+        # Tanpa ini, nilai yang tidak ada di daftar berujung timeout 30 detik
+        # dengan pesan "waiting for locator" — yang terbaca seperti aplikasi
+        # rusak, padahal DATANYA yang salah.
+        if option.count() == 0:
+            available = [
+                t.strip() for t in listbox.locator("[role=option]").all_inner_texts()
+            ][:15]
+            raise AssertionError(
+                f"Opsi {value!r} tidak ada di dropdown {key!r}.\n"
+                f"Pilihan yang tersedia: {available}\n"
+                "Periksa data test — untuk cascade, kemungkinan besar "
+                "kombinasi wilayahnya tidak sah."
+            )
+
+        option.first.click()
+
+        # Tunggu listbox tertutup sebelum menyentuh field berikutnya, supaya
+        # klik berikutnya tidak mengenai overlay yang masih terbuka.
+        expect(listbox).not_to_be_visible(timeout=15000)
 
     def select_first_option(self, key: str) -> str:
         """
@@ -223,16 +252,16 @@ class RegisterCompanyWizard(BasePage):
         trigger = self._combobox(key)
         trigger.click()
 
-        listbox = self.page.get_by_role("listbox")
-        expect(listbox).to_be_visible()
+        listbox = self.page.get_by_role("listbox").last
+        expect(listbox).to_be_visible(timeout=15000)
 
         options = listbox.locator("[role=option]")
-        expect(options.first).to_be_visible()
+        expect(options.first).to_be_visible(timeout=15000)
 
         chosen = options.first.inner_text().strip()
         options.first.click()
 
-        expect(listbox).not_to_be_visible()
+        expect(listbox).not_to_be_visible(timeout=15000)
         return chosen
 
     def selected_value(self, index: int) -> str:
@@ -254,8 +283,14 @@ class RegisterCompanyWizard(BasePage):
     # ------------------------------------------------------------------
 
     def open(self, base_url: str) -> None:
+        """
+        Buka wizard dan tunggu judulnya tampil.
+
+        Timeout 30 detik: halaman ini kerap menampilkan "Please wait..." lebih
+        lama daripada bawaan expect(), terutama saat aplikasi sedang berat.
+        """
         self.goto(f"{base_url.rstrip('/')}{WIZARD_PATH}")
-        expect(self.heading).to_be_visible()
+        expect(self.heading).to_be_visible(timeout=30000)
 
     def fill_text_fields(self, data: dict) -> None:
         """Isi keempat field teks Step 1."""
@@ -374,8 +409,8 @@ class RegisterCompanyWizard(BasePage):
         """
         self._combobox("province").click()
 
-        listbox = self.page.get_by_role("listbox")
-        expect(listbox).to_be_visible()
+        listbox = self.page.get_by_role("listbox").last
+        expect(listbox).to_be_visible(timeout=15000)
 
         second = listbox.locator("[role=option]").nth(1)
         expect(second).to_be_visible()

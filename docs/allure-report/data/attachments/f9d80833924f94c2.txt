@@ -1,0 +1,16 @@
+name: 'CV Mandiri Rejeki 2406'
+email: 'admin@cvmandirirejeki2406.co.id'
+phone: '80270606700'
+industry_type: 'Retail'
+company_type: 'Importer/Exporter'
+language: 'Indonesia'
+street_address: 'Jl. Gang M.H Thamrin No. 8'
+country: 'Indonesia'
+province: 'PAPUA'
+city: 'KOTA JAYAPURA'
+district: 'HERAM'
+sub_district: 'WAENA'
+postal_code: '99332'
+
+company_id: 5118554
+mongo_id: 6a7b3ae2b8f9ddcf240dd0f4

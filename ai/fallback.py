@@ -111,10 +111,22 @@ BUSINESS_WORDS = ["Sinar", "Berkah", "Sejahtera", "Mandiri", "Jaya", "Rejeki", "
 
 
 def _company_name() -> str:
-    """Nama PT yang terbaca wajar, bukan nama orang seperti default Faker."""
+    """
+    Nama PT yang terbaca wajar, dengan sufiks angka agar UNIK.
+
+    Sufiks 4 digit wajib ada. Tanpa itu, kumpulan kata yang dipakai hanya
+    menghasilkan sekitar 40 kombinasi - dan tabrakan benar-benar terjadi:
+    satu run gagal dengan "locator resolved to 2 elements" karena dua company
+    bernama sama ada di shared environment.
+
+    Tabrakan itu merusak seluruh asersi berbasis hitungan - TC-WEB-005
+    memastikan tepat 1 record, TC-WEB-015 memastikan 0 setelah dihapus.
+    Keduanya kehilangan makna bila namanya tidak unik.
+    """
     prefix = random.choice(COMPANY_PREFIXES)
     words = random.sample(BUSINESS_WORDS, k=2)
-    return f"{prefix} {' '.join(words)}"
+    suffix = random.randint(1000, 9999)
+    return f"{prefix} {' '.join(words)} {suffix}"
 
 
 def _email_from_name(name: str) -> str:
@@ -172,9 +184,10 @@ def faker_customer() -> CustomerData:
     """
     prefix = random.choice(OUTLET_PREFIXES)
     words = random.sample(BUSINESS_WORDS, k=2)
+    suffix = random.randint(1000, 9999)
 
     return CustomerData(
-        name=f"{prefix} {' '.join(words)}",
+        name=f"{prefix} {' '.join(words)} {suffix}",
         contact="08" + "".join(str(random.randint(0, 9)) for _ in range(10)),
         address=f"Jl. {fake.street_name()} No. {random.randint(1, 200)}, {fake.city()}",
     )

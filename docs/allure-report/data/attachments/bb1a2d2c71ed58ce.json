@@ -1,0 +1,19 @@
+{
+  "source": "fallback",
+  "reason": "AI_API_KEY tidak diisi",
+  "data": {
+    "name": "PT Mandiri Jaya 4329",
+    "email": "admin@ptmandirijaya4329.co.id",
+    "phone": "83134357361",
+    "industry_type": "Food & Beverage",
+    "company_type": "Freight Forwarder",
+    "language": "English",
+    "street_address": "Jl. Gg. Sukajadi No. 89",
+    "country": "Indonesia",
+    "province": "GORONTALO",
+    "city": "KOTA GORONTALO",
+    "district": "SIPATANA",
+    "sub_district": "TAPA",
+    "postal_code": ""
+  }
+}

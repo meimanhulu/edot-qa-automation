@@ -1,0 +1,19 @@
+{
+  "source": "fallback",
+  "reason": "AI_API_KEY tidak diisi",
+  "data": {
+    "name": "CV Sejahtera Nusantara 8238",
+    "email": "admin@cvsejahteranusantara.co.id",
+    "phone": "87605184304",
+    "industry_type": "Healthcare",
+    "company_type": "Holding Company",
+    "language": "Indonesia",
+    "street_address": "Jl. Gg. Sadang Serang No. 143",
+    "country": "Indonesia",
+    "province": "GORONTALO",
+    "city": "KOTA GORONTALO",
+    "district": "SIPATANA",
+    "sub_district": "TAPA",
+    "postal_code": ""
+  }
+}

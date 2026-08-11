@@ -173,6 +173,13 @@ def test_company_name_stored_trimmed(page, env, company_data):
     wizard.complete_step_two()
     wizard.complete_step_three(data)
 
+    # Setelah Register, aplikasi mengarahkan ke DAFTAR companies — bukan ke
+    # halaman detail. Company harus dicari di daftar lalu dibuka lewat Manage.
+    companies = CompaniesPage(page)
+    companies.open(env["base_url"])
+    companies.expect_company_count(clean_name, 1)
+    companies.open_manage(clean_name)
+
     detail = CompanyDetailPage(page)
     detail.wait_loaded()
     mongo_id = detail.mongo_id_from_url()
@@ -192,12 +199,14 @@ def test_company_name_stored_trimmed(page, env, company_data):
             f"Nama tidak ter-trim saat disimpan: {stored!r} (diharapkan {clean_name!r})"
         )
     finally:
+        # Cleanup manual: test ini tidak memakai fixture created_company
+        # karena datanya sengaja dimodifikasi dengan spasi berlebih.
         page.goto(
             f"{env['base_url'].rstrip('/')}/companies/manage-companies/{mongo_id}/profile"
         )
-        detail = CompanyDetailPage(page)
-        detail.wait_loaded()
-        detail.delete()
+        cleanup = CompanyDetailPage(page)
+        cleanup.wait_loaded()
+        cleanup.delete()
 
 
 @pytest.mark.web

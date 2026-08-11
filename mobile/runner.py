@@ -47,12 +47,20 @@ def maestro_available() -> bool:
     return shutil.which("maestro") is not None
 
 
-def run_flow(flow_name: str, extra_env: dict | None = None, timeout: int = 300):
+def run_flow(flow_name: str, extra_env: dict | None = None, timeout: int = 900):
     """
     Jalankan satu flow Maestro.
 
     Kredensial dan data test dilewatkan lewat flag `-e` ke Maestro —
     brief melarang hardcode di YAML.
+
+    TIMEOUT 900 DETIK, bukan 300.
+    Flow create customer melewati empat langkah pendaftaran dan butuh ~260
+    detik saat emulator sedang segar. Dalam run suite penuh, emulator sudah
+    menjalankan test sebelumnya dan melambat - cukup untuk melewati batas 300
+    detik. Kegagalannya muncul sebagai TimeoutExpired, bukan kegagalan
+    assertion, sehingga menyesatkan: terbaca seperti flow rusak padahal
+    hanya kehabisan waktu.
 
     Mengembalikan CompletedProcess apa adanya. Output selalu dilampirkan
     ke Allure, baik berhasil maupun gagal, supaya reviewer bisa melihat

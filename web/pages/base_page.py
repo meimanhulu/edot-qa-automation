@@ -32,7 +32,12 @@ class BasePage:
         penanda yang spesifik — itu lebih tepat daripada menebak lewat
         aktivitas jaringan.
         """
-        self.page.goto(url, wait_until="load")
+        # Timeout 60 detik, bukan bawaan 30. eSuite kerap lambat merespons -
+        # beberapa run gagal dengan "Page.goto: Timeout 30000ms exceeded"
+        # padahal halamannya termuat normal beberapa detik kemudian.
+        # Test yang gagal berganti-ganti tiap run, ciri khas lingkungan lambat
+        # dan bukan cacat aplikasi.
+        self.page.goto(url, wait_until="load", timeout=60000)
 
     # ------------------------------------------------------------------
     # Menunggu — tanpa sleep

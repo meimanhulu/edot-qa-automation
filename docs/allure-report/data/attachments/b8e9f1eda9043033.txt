@@ -1,0 +1,16 @@
+name: 'PT Mandiri Nusantara 3503'
+email: 'admin@ptmandirinusantara35.co.id'
+phone: '84804016549'
+industry_type: 'Retail'
+company_type: 'Importer/Exporter'
+language: 'Indonesia'
+street_address: 'Jl. Jl. Sentot Alibasa No. 68'
+country: 'Indonesia'
+province: 'PAPUA'
+city: 'KOTA JAYAPURA'
+district: 'HERAM'
+sub_district: 'WAENA'
+postal_code: '99332'
+
+company_id: 5118552
+mongo_id: 6a7b3abfb8f9ddcf240dcf24

@@ -1,0 +1,19 @@
+{
+  "source": "fallback",
+  "reason": "AI_API_KEY tidak diisi",
+  "data": {
+    "name": "PT Nusantara Jaya 1062",
+    "email": "admin@ptnusantarajaya1062.co.id",
+    "phone": "85714994938",
+    "industry_type": "Healthcare",
+    "company_type": "Third-Party Logistics (3PL) Provider",
+    "language": "English",
+    "street_address": "Jl. Gg. Sentot Alibasa No. 14",
+    "country": "Indonesia",
+    "province": "GORONTALO",
+    "city": "KOTA GORONTALO",
+    "district": "KOTA TENGAH",
+    "sub_district": "DULALOWO TIMUR",
+    "postal_code": ""
+  }
+}

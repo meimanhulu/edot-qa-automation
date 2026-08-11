@@ -1,0 +1,16 @@
+name: 'PT Nusantara Mandiri 1721'
+email: 'admin@ptnusantaramandiri17.co.id'
+phone: '87106447095'
+industry_type: 'Retail'
+company_type: 'Importer/Exporter'
+language: 'Indonesia'
+street_address: 'Jl. Jl. Ahmad Yani No. 39'
+country: 'Indonesia'
+province: 'PAPUA'
+city: 'KOTA JAYAPURA'
+district: 'HERAM'
+sub_district: 'WAENA'
+postal_code: '99332'
+
+company_id: 5118556
+mongo_id: 6a7b3b04b8f9ddcf240dd2c4

@@ -1,0 +1,19 @@
+{
+  "source": "fallback",
+  "reason": "AI_API_KEY tidak diisi",
+  "data": {
+    "name": "CV Nusantara Sinar 5034",
+    "email": "admin@cvnusantarasinar5034.co.id",
+    "phone": "86159478221",
+    "industry_type": "Finance and Banking",
+    "company_type": "Importer/Exporter",
+    "language": "Indonesia",
+    "street_address": "Jl. Jalan Moch. Ramdan No. 47",
+    "country": "Indonesia",
+    "province": "GORONTALO",
+    "city": "KOTA GORONTALO",
+    "district": "SIPATANA",
+    "sub_district": "MOLOSIFAT U",
+    "postal_code": ""
+  }
+}
