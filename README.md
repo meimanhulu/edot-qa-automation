@@ -438,8 +438,3 @@ koneksi tersedia.
 2. Pecah langkah panjang jadi sub-flow di `mobile/flows/steps/`
 3. Assert **tepat setelah input**, jangan menggulir balik
 4. Lewatkan data lewat variabel dari wrapper Pytest
-
-Berlaku untuk keduanya:
-- Beri komentar `# Tier 2:` pada asersi yang memverifikasi data
-- Buktikan asersinya bisa gagal — ubah satu expected value, pastikan merah,
-  kembalikan
