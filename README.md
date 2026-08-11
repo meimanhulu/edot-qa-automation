@@ -1,7 +1,7 @@
 # eDOT QA Automation — Take-Home Test V4
 
-Suite automation testing untuk **eSuite (web)**, dengan AI di dalam suite —
-generasi data test dan triage kegagalan.
+Suite automation testing untuk **eSuite (web)** dan **eWork SFA (mobile)**,
+dengan AI di dalam suite — generasi data test dan triage kegagalan.
 
 **Repository:** https://github.com/meimanhulu/edot-qa-automation
 
@@ -9,37 +9,31 @@ generasi data test dan triage kegagalan.
 
 ## Ringkasan hasil
 
-Suite web dieksekusi penuh:
-
-```
-15 passed · 4 failed
-```
-
-Kegagalannya **disengaja dan bermakna**. `TC-WEB-013d` dibuat khusus untuk
-mendokumentasikan cacat produk yang ditemukan, dan akan tetap merah selama
-cacatnya ada.
+| Suite | Hasil |
+|---|---|
+| **Web** (Playwright) | 15 lolos · 4 gagal — kegagalannya disengaja dan terdokumentasi |
+| **Mobile** (Maestro) | TC-MOB-001 login **lolos**, dilaporkan ke run Allure yang sama |
 
 | Bukti | Lokasi |
 |---|---|
 | Laporan Allure (HTML) | [`docs/allure-report/`](docs/allure-report/) |
-| Hasil mentah Allure | [`docs/allure-results-backup/`](docs/allure-results-backup/) |
 | Laporan triage | [`docs/triage-report.md`](docs/triage-report.md) |
 | Dokumentasi AI | [`AI_USAGE.md`](AI_USAGE.md) |
 | Penjelasan tiap keputusan desain | [`docs/CODE_WALKTHROUGH.md`](docs/CODE_WALKTHROUGH.md) |
+| Panduan setup mobile | [`docs/MAESTRO_SETUP_WINDOWS.md`](docs/MAESTRO_SETUP_WINDOWS.md) |
 | Dokumen test case | Google Sheet terpisah, 26 skenario |
 
 ---
 
 ## Setup
 
+### Web — Playwright
+
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1      # Windows
-# source .venv/bin/activate       # macOS / Linux
-
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 playwright install chromium
-
 Copy-Item .env.example .env       # lalu isi nilainya
 ```
 
@@ -47,10 +41,28 @@ Wajib diisi: `ESUITE_BASE_URL`, `ESUITE_EMAIL`, `ESUITE_PASSWORD`.
 Bila salah satu kosong, suite gagal cepat dengan pesan yang menyebut nama
 variabelnya — bukan error misterius di tengah run.
 
-Untuk membuka laporan Allure:
+### Mobile — Maestro
+
+Sejak Maestro 1.39.9 CLI-nya berjalan **native di Windows**, jadi WSL tidak
+diperlukan:
 
 ```powershell
-npm install -g allure-commandline
+Invoke-WebRequest -Uri "https://github.com/mobile-dev-inc/maestro/releases/latest/download/maestro.zip" -OutFile "$env:USERPROFILE\Downloads\maestro.zip"
+Expand-Archive "$env:USERPROFILE\Downloads\maestro.zip" -DestinationPath "C:\maestro"
+$env:PATH += ";C:\maestro\maestro\bin"
+maestro --version
+```
+
+Prasyarat: emulator Android dengan image **Google Play** (agar eWork SFA bisa
+dipasang dari Play Store) dan `adb devices` mengenalinya.
+
+Isi kredensial mobile di `.env`:
+
+```
+EWORK_APP_ID=id.edot.ework
+EWORK_COMPANY_ID=...
+EWORK_USERNAME=...
+EWORK_PASSWORD=...
 ```
 
 ---
@@ -59,18 +71,16 @@ npm install -g allure-commandline
 
 ```powershell
 pytest -m web                     # suite web
-python scripts/run_triage.py      # triage kegagalan — jalankan SETELAH suite
+pytest -m mobile                  # suite mobile
+pytest                            # keduanya, satu run Allure
+
+python scripts/run_triage.py      # triage kegagalan — SETELAH suite
 allure serve allure-results       # buka laporan
 
 python tools/cleanup_orphans.py "PT"   # bersihkan data sisa run yang gagal
 ```
 
-Melihat browser bergerak saat debug:
-
-```powershell
-$env:HEADLESS="false"
-pytest -m web -v
-```
+Melihat browser bergerak saat debug: `$env:HEADLESS="false"`
 
 ---
 
@@ -80,10 +90,12 @@ pytest -m web -v
 conftest.py         fixture bersama; satu-satunya pembaca os.environ
 web/pages/          Page Object — satu-satunya tempat locator
 web/tests/          test Playwright, tanpa selector mentah
+mobile/flows/       YAML Maestro; login sebagai shared sub-flow via runFlow
+mobile/runner.py    wrapper Pytest yang memanggil Maestro
 ai/                 3A generator data · 3B triage kegagalan
 scripts/            entry point triage
 tools/              pembersih data sisa
-docs/               walkthrough kode, bukti eksekusi
+docs/               walkthrough kode, panduan Maestro, bukti eksekusi
 ```
 
 ---
@@ -96,15 +108,17 @@ docs/               walkthrough kode, bukti eksekusi
 | Tidak ada kredensial atau API key di repo | Non-negotiable |
 | Data test dihapus setelah run | Non-negotiable — shared environment |
 | Setiap baris harus bisa dijelaskan | Non-negotiable |
-| Tidak ada `time.sleep()` | Auto-waiting Playwright dan `expect()` |
-| Tidak ada `networkidle` | Nol pemakaian — lihat bagian Pelajaran Teknis |
-| Locator hanya di page class | Tidak ada selector mentah di berkas test |
+| Tidak ada `time.sleep()` | Auto-waiting Playwright / wait command Maestro |
+| Tidak ada `networkidle` | Nol pemakaian — lihat Pelajaran Teknis |
+| Locator hanya di page class dan YAML | Tidak ada selector mentah di berkas test |
 | Login sekali per sesi via `storage_state` | Bukan login di dalam tiap test |
 | Assertion Tier 2 diberi komentar penanda | Agar reviewer membedakan bug produk dari cacat skrip |
 
 ---
 
 ## Skenario dan hasilnya
+
+### Web — eSuite
 
 | Skenario | Tier | Status |
 |---|---|---|
@@ -125,6 +139,22 @@ docs/               walkthrough kode, bukti eksekusi
 | **Detail page memuat data tanpa reload** | 1 | ❌ **cacat produk** |
 | Company name tersimpan ter-trim | 2 | ⚠️ flaky |
 | Delete company (dalam suite penuh) | 2 | ⚠️ flaky |
+
+### Mobile — eWork SFA
+
+| Skenario | Tier | Status |
+|---|---|---|
+| **TC-MOB-001 Login eWork SFA** | 1 | ✅ |
+| TC-MOB-002 Create customer + verifikasi field | 2 | ⬜ flow ditulis, belum dieksekusi |
+
+`TC-MOB-002` sudah punya seluruh selector terverifikasi lewat `maestro hierarchy`
+dan assertion Tier 2 di YAML-nya. Yang belum hanya eksekusi penuh — navigasi
+dari dashboard ke form pendaftaran memerlukan waktu muat yang belum selesai
+dikalibrasi.
+
+Flow-nya sengaja **berhenti sebelum submit**: langkah setelah submit belum
+diinspeksi, dan tanpa jalur penghapusan, menekannya akan meninggalkan data di
+shared environment.
 
 ---
 
@@ -157,7 +187,7 @@ berawalan `0` membuat tombol Next **terkunci tanpa pesan error apa pun**.
 Ditangkap oleh schema validation di `ai/schemas.py` supaya kegagalan menyebut
 penyebab sebenarnya, bukan berupa timeout yang membingungkan.
 
-### 3. Aksesibilitas
+### 3. Aksesibilitas (web)
 
 - Seluruh combobox tanpa `aria-label`, `aria-labelledby`, maupun `title` —
   pengguna screen reader tidak mendapat informasi apa pun tentang fungsi
@@ -179,21 +209,18 @@ yang baru saja ia buat.
 
 ## Temuan saat inspeksi — berbeda dari brief
 
-Semua diverifikasi langsung di aplikasi.
+### Web tidak menyediakan penanda test; mobile justru sebaliknya
 
-### Aplikasi tidak menyediakan penanda test
-
-| Temuan | Bukti |
+| Platform | Temuan |
 |---|---|
-| Nol `data-testid` | `document.querySelectorAll('[data-testid]').length === 0` |
-| Nol accessible name pada combobox | `aria-label`, `aria-labelledby`, `title` kosong pada kelimanya |
-| `id` bernilai `radix-:rd:` | Radix UI, di-generate ulang tiap render |
+| **Web** | Nol `data-testid`, nol accessible name pada combobox, `id` bernilai `radix-:rd:` yang di-generate ulang tiap render |
+| **Mobile** | `resource-id` bersih dan stabil di seluruh layar — prioritas pertama pada urutan brief, tanpa satu pun tap koordinat |
 
-Konsekuensinya: input memakai `get_by_placeholder()`, tombol memakai `role` +
-accessible name, dan **combobox terpaksa memakai indeks** — satu-satunya
+Konsekuensinya di web: input memakai `get_by_placeholder()`, tombol memakai
+`role` + accessible name, dan combobox terpaksa memakai indeks — satu-satunya
 pembeda yang tersedia.
 
-### Alur login
+### Alur login web
 
 | Brief | Kenyataan |
 |---|---|
@@ -223,7 +250,7 @@ Account Center maupun wizard mengunci tombol lanjut selama form belum valid,
 
 | Sumber | Field |
 |---|---|
-| **Modul AI (3A)** | Company Name, Email, Phone, Street Address |
+| **Modul AI (3A)** | Company Name, Email, Phone, Street Address · nama & kontak customer |
 | **Opsi aplikasi** | Industry Type, Company Type, Language, Province, City, District, Sub District |
 | **Data test** | Country — ditentukan eksplisit `Indonesia` |
 | **Aplikasi (otomatis)** | Postal Code, Company ID |
@@ -243,19 +270,18 @@ sehingga verifikasi membandingkan terhadap apa yang benar-benar masuk ke form.
 
 ## AI di dalam suite
 
-Detail lengkap ada di [`AI_USAGE.md`](AI_USAGE.md). Ringkasnya:
+Detail lengkap di [`AI_USAGE.md`](AI_USAGE.md). Ringkasnya:
 
 **3A — Generator data test.** Meminta model menghasilkan data bisnis Indonesia
 yang koheren, memvalidasinya terhadap schema Pydantic sebelum dikonsumsi test,
 retry sekali bila tidak valid, lalu jatuh ke fallback Faker. Tanpa API key,
 fallback dipakai langsung sehingga suite tetap jalan offline dan di CI. Data
-yang benar-benar dipakai beserta sumbernya dilampirkan ke Allure.
+yang dipakai beserta sumbernya dilampirkan ke Allure.
 
 **3B — Triage kegagalan.** Membaca hasil Allure setelah run, menelusuri bukti
 mengikuti urutan yang ditetapkan brief, lalu memberi verdict: *script/environment
 defect*, *kandidat product bug*, atau *flaky*. Modul ini tidak menyentuh test,
-tidak membuat bug report, dan tidak menutup apa pun — verdict adalah usulan
-untuk manusia.
+tidak membuat bug report, dan tidak menutup apa pun.
 
 Verdict pada run terakhir:
 
@@ -264,20 +290,15 @@ Verdict pada run terakhir:
 | kandidat product bug | 3 |
 | script/environment defect | 1 |
 
-Modul 3B memvonis dua test flaky sebagai *kandidat product bug*. Berdasarkan
-peninjauan manual, keduanya lebih tepat dikategorikan **flaky** — kegagalannya
-berasal dari waktu render, bukan dari perilaku aplikasi yang salah.
-
-Ini justru contoh mengapa brief mensyaratkan verdict sebagai usulan: penelusuran
-bukti otomatis tidak dapat membedakan "assertion gagal karena bug" dari
-"assertion gagal karena elemen belum ter-render", sementara manusia yang membaca
-konteksnya bisa.
+Dua di antaranya, berdasarkan peninjauan manual, lebih tepat dikategorikan
+**flaky** — kegagalannya berasal dari waktu render, bukan perilaku aplikasi yang
+salah. Ini justru contoh mengapa brief mensyaratkan verdict sebagai usulan untuk
+manusia: penelusuran bukti otomatis tidak dapat membedakan "assertion gagal
+karena bug" dari "assertion gagal karena elemen belum ter-render".
 
 ---
 
 ## Pelajaran teknis dari aplikasi ini
-
-Empat pola berulang yang membentuk seluruh keputusan desain suite:
 
 | Pola | Contoh | Konsekuensi |
 |---|---|---|
@@ -292,9 +313,14 @@ berjalan terus sehingga kondisi "jaringan tenang" tidak pernah tercapai —
 penantiannya menggantung sampai timeout padahal halaman sudah siap. Penggantinya
 penanda spesifik: URL berubah, elemen tujuan muncul, atau tombol kembali enabled.
 
+Untuk mobile: variabel harus dilewatkan lewat flag `-e`, **bukan** environment
+proses. Dengan environment proses saja, `appId: ${EWORK_APP_ID}` terbaca sebagai
+`undefined` dan flow gagal dengan *"Package undefined is not installed"* — flag
+`-e` diteruskan sampai ke sub-flow yang dipanggil `runFlow`.
+
 ---
 
-## Catatan atas dua test yang masih flaky
+## Catatan atas dua test web yang masih flaky
 
 `test_delete_company` dan `test_company_name_stored_trimmed` lolos bila
 dijalankan sendiri, tetapi gagal saat suite penuh dijalankan. Penyebabnya render
